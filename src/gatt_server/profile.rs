@@ -3,7 +3,7 @@ use esp_idf_sys::*;
 use log::info;
 
 #[derive(Debug, Clone)]
-pub struct Application {
+pub struct Profile {
     name: Option<String>,
     services: Vec<Service>,
     identifier: u16,
@@ -11,9 +11,9 @@ pub struct Application {
     handle_counter: u16,
 }
 
-impl Application {
+impl Profile {
     pub fn new(name: &str, identifier: u16) -> Self {
-        Application {
+        Profile {
             name: Some(String::from(name)),
             services: Vec::new(),
             identifier,
@@ -46,7 +46,7 @@ impl Application {
     }
 }
 
-impl std::fmt::Display for Application {
+impl std::fmt::Display for Profile {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let interface_string = if let Some(interface) = self.interface {
             format!("{}", interface)

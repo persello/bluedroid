@@ -5,7 +5,7 @@ use esp_idf_sys::*;
 use lazy_static::lazy_static;
 use log::{info, warn};
 
-pub use application::Application;
+pub use profile::Profile;
 pub use characteristic::Characteristic;
 pub use descriptor::Descriptor;
 pub use service::Service;
@@ -13,7 +13,7 @@ pub use service::Service;
 use crate::leaky_box_raw;
 
 // Structs.
-mod application;
+mod profile;
 mod characteristic;
 mod descriptor;
 mod service;
@@ -30,7 +30,7 @@ lazy_static! {
 }
 
 pub struct GattServer {
-    applications: Vec<Application>,
+    applications: Vec<Profile>,
     started: bool,
 }
 
@@ -59,7 +59,7 @@ impl GattServer {
         })
     }
 
-    pub fn add_applications(&mut self, applications: &[Application]) {
+    pub fn add_applications(&mut self, applications: &[Profile]) {
         self.applications.append(&mut applications.to_vec());
         if self.started {
             warn!("In order to register the newly added applications, you'll need to restart the GATT server.");
