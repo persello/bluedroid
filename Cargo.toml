@@ -1,0 +1,22 @@
+[package]
+name = "bluedroid"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+esp-idf-sys = { version = "0.31.6", features = ["native"] }
+log = { version = "0.4.17" }
+lazy_static = { version = "1.4.0" }
+
+[build-dependencies]
+embuild = { version = "0.30.1" }
+anyhow = { version = "1.0.58" }
+
+[dev-dependencies]
+anyhow = { version = "1.0.58" }
+esp-idf-sys = { version = "0.31.4", features = ["native", "binstart"] }
+esp-idf-svc = { version = "0.42.1" }
+
+[[example]]
+name = "server"
+required-features = ["esp-idf-sys/binstart"]
