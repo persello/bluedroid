@@ -1,7 +1,9 @@
-use std::fmt::Formatter;
-use crate::{gatt_server::characteristic::Characteristic, leaky_box_raw, utilities::ble_uuid::BleUuid};
+use crate::{
+    gatt_server::characteristic::Characteristic, leaky_box_raw, utilities::ble_uuid::BleUuid,
+};
 use esp_idf_sys::*;
 use log::info;
+use std::fmt::Formatter;
 
 #[derive(Debug, Clone)]
 pub struct Service {
@@ -9,7 +11,7 @@ pub struct Service {
     uuid: BleUuid,
     characteristics: Vec<Characteristic>,
     primary: bool,
-    handle: Option<u16>,
+    pub(crate) handle: Option<u16>,
 }
 
 impl Service {
@@ -29,23 +31,37 @@ impl Service {
     }
 
     pub(crate) fn register_self(&mut self, interface: u8, handle: u16) {
-        info!("Registering {} on interface {} at handle {:04x}.", &self, interface, handle);
-        let id = esp_gatt_srvc_id_t {
+        info!(
+            "Registering {} on interface {} with handle {:04x}.",
+            &self, interface, handle
+        );
+
+        let id: esp_gatt_srvc_id_t = esp_gatt_srvc_id_t {
             is_primary: true,
             id: self.uuid.into(),
         };
+
         self.handle = Some(handle);
         unsafe {
-            esp_nofail!(esp_ble_gatts_create_service(interface, leaky_box_raw!(id), self.handle.unwrap()));
+            esp_nofail!(esp_ble_gatts_create_service(
+                interface,
+                leaky_box_raw!(id),
+                self.handle.unwrap()
+            ));
         }
     }
 
-    // pub(crate) fn register_characteristics(&self) {
-    //     info!("Registering {}'s characteristics.", self);
-    //     self.characteristics.iter().for_each(|mut characteristic| {
-    //         characteristic.register_self(self);
-    //     });
-    // }
+    pub(crate) fn register_characteristics(&mut self) {
+        info!("Registering {}'s characteristics.", &self);
+        self.characteristics
+            .iter_mut()
+            .for_each(|characteristic: &mut Characteristic| {
+                characteristic.register_self(
+                    self.handle
+                        .expect("Cannot register a characteristic to a service without a handle."),
+                );
+            });
+    }
 }
 
 impl std::fmt::Display for Service {
@@ -56,6 +72,14 @@ impl std::fmt::Display for Service {
             String::from("None")
         };
 
-        write!(f, "{} ({}, handle: {})", self.name.clone().unwrap_or_else(|| "Unnamed service".to_string()), self.uuid, handle_string)
+        write!(
+            f,
+            "{} ({}, handle: {})",
+            self.name
+                .clone()
+                .unwrap_or_else(|| "Unnamed service".to_string()),
+            self.uuid,
+            handle_string
+        )
     }
 }

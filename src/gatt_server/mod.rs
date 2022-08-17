@@ -5,17 +5,17 @@ use esp_idf_sys::*;
 use lazy_static::lazy_static;
 use log::{info, warn};
 
-pub use profile::Profile;
 pub use characteristic::Characteristic;
 pub use descriptor::Descriptor;
+pub use profile::Profile;
 pub use service::Service;
 
 use crate::leaky_box_raw;
 
 // Structs.
-mod profile;
 mod characteristic;
 mod descriptor;
+mod profile;
 mod service;
 
 // Event handler.

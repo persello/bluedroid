@@ -1,4 +1,4 @@
-use esp_idf_sys::esp_gatt_id_t;
+use esp_idf_sys::{esp_bt_uuid_t, esp_gatt_id_t};
 
 #[derive(Copy, Clone)]
 pub enum BleUuid {
@@ -51,19 +51,29 @@ impl BleUuid {
 #[allow(clippy::from_over_into)]
 impl Into<esp_gatt_id_t> for BleUuid {
     fn into(self) -> esp_gatt_id_t {
-        let mut result = esp_gatt_id_t::default();
+        esp_gatt_id_t {
+            uuid: self.into(),
+            ..Default::default()
+        }
+    }
+}
+
+impl Into<esp_bt_uuid_t> for BleUuid {
+    fn into(self) -> esp_bt_uuid_t {
+        let mut result: esp_bt_uuid_t = esp_bt_uuid_t::default();
+
         match self {
             BleUuid::Uuid16(uuid) => {
-                result.uuid.uuid.uuid16 = uuid;
-                result.uuid.len = 2;
+                result.len = 2;
+                result.uuid.uuid16 = uuid;
             }
             BleUuid::Uuid32(uuid) => {
-                result.uuid.uuid.uuid32 = uuid;
-                result.uuid.len = 4;
+                result.len = 4;
+                result.uuid.uuid32 = uuid;
             }
             BleUuid::Uuid128(uuid) => {
-                result.uuid.uuid.uuid128 = uuid;
-                result.uuid.len = 16;
+                result.len = 16;
+                result.uuid.uuid128 = uuid;
             }
         }
 

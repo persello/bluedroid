@@ -54,6 +54,14 @@ impl std::fmt::Display for Profile {
             String::from("None")
         };
 
-        write!(f, "{} (0x{:02x}, interface: {})", self.name.clone().unwrap_or_else(|| "Unnamed application".to_string()), self.identifier, interface_string)
+        write!(
+            f,
+            "{} (0x{:02x}, interface: {})",
+            self.name
+                .clone()
+                .unwrap_or_else(|| "Unnamed application".to_string()),
+            self.identifier,
+            interface_string
+        )
     }
 }
