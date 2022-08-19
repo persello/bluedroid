@@ -1,18 +1,14 @@
-use crate::{
-    gatt_server::{descriptor::Descriptor, service::Service},
-    leaky_box_raw,
-    utilities::ble_uuid::BleUuid,
-};
-use esp_idf_sys::{esp_attr_control_t, esp_attr_value_t, esp_ble_gatts_add_char, esp_nofail};
-use log::{error, info};
+use crate::{gatt_server::descriptor::Descriptor, leaky_box_raw, utilities::ble_uuid::BleUuid};
+use esp_idf_sys::{esp_ble_gatts_add_char, esp_nofail};
+use log::info;
 use std::fmt::Formatter;
 
 #[derive(Debug, Clone)]
 pub struct Characteristic {
     name: Option<String>,
-    uuid: BleUuid,
+    pub(crate) uuid: BleUuid,
     value: Vec<u8>,
-    descriptors: Vec<Descriptor>,
+    pub(crate) descriptors: Vec<Descriptor>,
     service_handle: Option<u16>,
 }
 
@@ -66,7 +62,7 @@ impl Characteristic {
     ///
     /// Bluedroid does not offer a way to register descriptors to a specific characteristic.
     /// This is simply done by registering the characteristic and then registering its descriptors.
-    fn register_descriptors(&mut self) {
+    pub(crate) fn register_descriptors(&mut self) {
         info!("Registering {}'s descriptors.", &self);
         self.descriptors
             .iter_mut()

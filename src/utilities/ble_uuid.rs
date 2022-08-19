@@ -1,6 +1,6 @@
-use esp_idf_sys::{esp_bt_uuid_t, esp_gatt_id_t};
+use esp_idf_sys::{esp_bt_uuid_t, esp_gatt_id_t, ESP_UUID_LEN_16, ESP_UUID_LEN_128, ESP_UUID_LEN_32};
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum BleUuid {
     Uuid16(u16),
     Uuid32(u32),
@@ -53,7 +53,7 @@ impl Into<esp_gatt_id_t> for BleUuid {
     fn into(self) -> esp_gatt_id_t {
         esp_gatt_id_t {
             uuid: self.into(),
-            ..Default::default()
+            inst_id: 0x00,
         }
     }
 }
@@ -64,15 +64,15 @@ impl Into<esp_bt_uuid_t> for BleUuid {
 
         match self {
             BleUuid::Uuid16(uuid) => {
-                result.len = 2;
+                result.len = ESP_UUID_LEN_16 as u16;
                 result.uuid.uuid16 = uuid;
             }
             BleUuid::Uuid32(uuid) => {
-                result.len = 4;
+                result.len = ESP_UUID_LEN_32 as u16;
                 result.uuid.uuid32 = uuid;
             }
             BleUuid::Uuid128(uuid) => {
-                result.len = 16;
+                result.len = ESP_UUID_LEN_128 as u16;
                 result.uuid.uuid128 = uuid;
             }
         }
@@ -81,11 +81,30 @@ impl Into<esp_bt_uuid_t> for BleUuid {
     }
 }
 
+impl From<esp_bt_uuid_t> for BleUuid {
+    fn from(uuid: esp_bt_uuid_t) -> Self {
+        unsafe {
+            match uuid.len {
+                2 => BleUuid::Uuid16(uuid.uuid.uuid16),
+                4 => BleUuid::Uuid32(uuid.uuid.uuid32),
+                16 => BleUuid::Uuid128(uuid.uuid.uuid128),
+                _ => panic!("Invalid UUID length."),
+            }
+        }
+    }
+}
+
+impl From<esp_gatt_id_t> for BleUuid {
+    fn from(uuid: esp_gatt_id_t) -> Self {
+        Self::from(uuid.uuid)
+    }
+}
+
 impl std::fmt::Display for BleUuid {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BleUuid::Uuid16(uuid) => write!(f, "0x{:02x}", uuid),
-            BleUuid::Uuid32(uuid) => write!(f, "0x{:04x}", uuid),
+            BleUuid::Uuid16(uuid) => write!(f, "0x{:04x}", uuid),
+            BleUuid::Uuid32(uuid) => write!(f, "0x{:08x}", uuid),
             BleUuid::Uuid128(uuid) => {
                 let mut uuid = *uuid;
                 uuid.reverse();

@@ -5,7 +5,7 @@ use log::info;
 #[derive(Debug, Clone)]
 pub struct Descriptor {
     name: Option<String>,
-    uuid: BleUuid,
+    pub(crate) uuid: BleUuid,
     value: Vec<u8>,
 }
 

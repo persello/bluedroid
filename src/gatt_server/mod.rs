@@ -1,7 +1,29 @@
 use std::ptr::replace;
 use std::sync::Mutex;
 
-use esp_idf_sys::*;
+use esp_idf_sys::{
+    esp_ble_addr_type_t_BLE_ADDR_TYPE_RPA_PUBLIC, esp_ble_adv_channel_t_ADV_CHNL_ALL,
+    esp_ble_adv_data_t, esp_ble_adv_filter_t_ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY,
+    esp_ble_adv_params_t, esp_ble_adv_type_t_ADV_TYPE_IND, esp_ble_gap_cb_param_t,
+    esp_ble_gap_register_callback, esp_ble_gatts_cb_param_t, esp_ble_gatts_register_callback,
+    esp_bluedroid_enable, esp_bluedroid_init, esp_bt_controller_config_t, esp_bt_controller_enable,
+    esp_ble_gap_set_device_name,
+    esp_bt_controller_init, esp_bt_controller_mem_release, esp_bt_mode_t_ESP_BT_MODE_BLE,
+    esp_bt_mode_t_ESP_BT_MODE_CLASSIC_BT, esp_gap_ble_cb_event_t, esp_gatt_if_t,
+    esp_gatts_cb_event_t, esp_nofail, nvs_flash_erase, nvs_flash_init, AGC_RECORRECT_EN,
+    BLE_HW_TARGET_CODE_ESP32C3_CHIP_ECO0, CFG_NASK, CONFIG_BT_CTRL_ADV_DUP_FILT_MAX,
+    CONFIG_BT_CTRL_BLE_MAX_ACT_EFF, CONFIG_BT_CTRL_BLE_STATIC_ACL_TX_BUF_NB,
+    CONFIG_BT_CTRL_CE_LENGTH_TYPE_EFF, CONFIG_BT_CTRL_COEX_PHY_CODED_TX_RX_TLIM_EFF,
+    CONFIG_BT_CTRL_DFT_TX_POWER_LEVEL_EFF, CONFIG_BT_CTRL_HCI_TL_EFF, CONFIG_BT_CTRL_HW_CCA_EFF,
+    CONFIG_BT_CTRL_HW_CCA_VAL, CONFIG_BT_CTRL_MODE_EFF, CONFIG_BT_CTRL_PINNED_TO_CORE,
+    CONFIG_BT_CTRL_RX_ANTENNA_INDEX_EFF, CONFIG_BT_CTRL_SLEEP_CLOCK_EFF,
+    CONFIG_BT_CTRL_SLEEP_MODE_EFF, CONFIG_BT_CTRL_TX_ANTENNA_INDEX_EFF,
+    ESP_BLE_ADV_FLAG_BREDR_NOT_SPT, ESP_BLE_ADV_FLAG_GEN_DISC, ESP_BT_CTRL_CONFIG_MAGIC_VAL,
+    ESP_BT_CTRL_CONFIG_VERSION, ESP_ERR_NVS_NEW_VERSION_FOUND, ESP_ERR_NVS_NO_FREE_PAGES,
+    ESP_TASK_BT_CONTROLLER_PRIO, ESP_TASK_BT_CONTROLLER_STACK, MESH_DUPLICATE_SCAN_CACHE_SIZE,
+    NORMAL_SCAN_DUPLICATE_CACHE_SIZE, SCAN_DUPLICATE_MODE, SCAN_DUPLICATE_TYPE_VALUE,
+    SLAVE_CE_LEN_MIN_DEFAULT, esp_bluedroid_get_status,
+};
 use lazy_static::lazy_static;
 use log::{info, warn};
 
@@ -23,27 +45,46 @@ mod gap_event_handler;
 mod gatts_event_handler;
 
 lazy_static! {
-    static ref GLOBAL_GATT_SERVER: Mutex<Option<GattServer>> = Mutex::new(Some(GattServer {
-        applications: Vec::new(),
+    pub static ref GLOBAL_GATT_SERVER: Mutex<Option<GattServer>> = Mutex::new(Some(GattServer {
+        profiles: Vec::new(),
         started: false,
+        advertisement_parameters: esp_ble_adv_params_t {
+            adv_int_min: 0x20,
+            adv_int_max: 0x40,
+            adv_type: esp_ble_adv_type_t_ADV_TYPE_IND,
+            own_addr_type: esp_ble_addr_type_t_BLE_ADDR_TYPE_RPA_PUBLIC,
+            channel_map: esp_ble_adv_channel_t_ADV_CHNL_ALL,
+            adv_filter_policy: esp_ble_adv_filter_t_ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY,
+            ..Default::default()
+        },
+        advertisement_data: esp_ble_adv_data_t {
+            set_scan_rsp: false,
+            include_name: true,
+            include_txpower: true,
+            min_interval: 0x0006,
+            max_interval: 0x0010,
+            appearance: 0x0000,
+            manufacturer_len: 0,
+            p_manufacturer_data: std::ptr::null_mut(),
+            service_data_len: 0,
+            p_service_data: std::ptr::null_mut(),
+            service_uuid_len: 0,
+            p_service_uuid: std::ptr::null_mut(),
+            flag: (ESP_BLE_ADV_FLAG_GEN_DISC | ESP_BLE_ADV_FLAG_BREDR_NOT_SPT) as u8,
+        }
     }));
 }
 
 pub struct GattServer {
-    applications: Vec<Profile>,
+    profiles: Vec<Profile>,
     started: bool,
+    advertisement_parameters: esp_ble_adv_params_t,
+    advertisement_data: esp_ble_adv_data_t,
 }
 
-impl GattServer {
-    pub fn take() -> Option<Self> {
-        if let Ok(mut server) = GLOBAL_GATT_SERVER.try_lock() {
-            let mut server = server.take();
-            unsafe { replace(&mut server, None) }
-        } else {
-            None
-        }
-    }
+unsafe impl Send for GattServer {}
 
+impl GattServer {
     pub fn start(&mut self) {
         if self.started {
             warn!("GATT server already started.");
@@ -53,18 +94,32 @@ impl GattServer {
         self.started = true;
         self.initialise_ble_stack();
 
-        // Registration of applications, services, characteristics and descriptors.
-        self.applications.iter().for_each(|application| {
-            application.register_self();
+        // Registration of profiles, services, characteristics and descriptors.
+        self.profiles.iter().for_each(|profile: &Profile| {
+            profile.register_self();
         })
     }
 
-    pub fn add_applications(&mut self, applications: &[Profile]) {
-        self.applications.append(&mut applications.to_vec());
+    pub fn add_profiles(&mut self, profiles: &[Profile]) -> &mut Self {
+        self.profiles.append(&mut profiles.to_vec());
         if self.started {
-            warn!("In order to register the newly added applications, you'll need to restart the GATT server.");
+            warn!("In order to register the newly added profiles, you'll need to restart the GATT server.");
         }
+
+        self
     }
+
+    pub fn set_adv_params(&mut self, params: esp_ble_adv_params_t) -> &mut Self {
+        self.advertisement_parameters = params;
+        self
+    }
+
+    pub fn set_adv_data(&mut self, data: esp_ble_adv_data_t) -> &mut Self {
+        self.advertisement_data = data;
+        self
+    }
+
+    // TODO: Update adv data on service add!
 
     fn initialise_ble_stack(&mut self) {
         info!("Initialising BLE stack.");
@@ -123,8 +178,43 @@ impl GattServer {
             esp_nofail!(esp_bt_controller_enable(esp_bt_mode_t_ESP_BT_MODE_BLE));
             esp_nofail!(esp_bluedroid_init());
             esp_nofail!(esp_bluedroid_enable());
-            // esp_nofail!(esp_ble_gatts_register_callback(Some()));
-            // esp_nofail!(esp_ble_gap_register_callback(Some()));
+            esp_nofail!(esp_ble_gatts_register_callback(Some(
+                Self::default_gatts_callback
+            )));
+            esp_nofail!(esp_ble_gap_register_callback(Some(
+                Self::default_gap_callback
+            )));
         }
+    }
+
+    /// Calls the global server's GATT event callback.
+    ///
+    /// This is a bad workaround, and only works because we have a singleton server.
+    extern "C" fn default_gatts_callback(
+        event: esp_gatts_cb_event_t,
+        gatts_if: esp_gatt_if_t,
+        param: *mut esp_ble_gatts_cb_param_t,
+    ) {
+        GLOBAL_GATT_SERVER
+            .lock()
+            .expect("Cannot lock global GATT server.")
+            .as_mut()
+            .expect("Cannot get mutable reference to global GATT server.")
+            .gatts_event_handler(event, gatts_if, param);
+    }
+
+    /// Calls the global server's GAP event callback.
+    ///
+    /// This is a bad workaround, and only works because we have a singleton server.
+    extern "C" fn default_gap_callback(
+        event: esp_gap_ble_cb_event_t,
+        param: *mut esp_ble_gap_cb_param_t,
+    ) {
+        GLOBAL_GATT_SERVER
+            .lock()
+            .expect("Cannot lock global GATT server.")
+            .as_mut()
+            .expect("Cannot get mutable reference to global GATT server.")
+            .gap_event_handler(event, param);
     }
 }

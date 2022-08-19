@@ -8,8 +8,8 @@ use std::fmt::Formatter;
 #[derive(Debug, Clone)]
 pub struct Service {
     name: Option<String>,
-    uuid: BleUuid,
-    characteristics: Vec<Characteristic>,
+    pub(crate) uuid: BleUuid,
+    pub(crate) characteristics: Vec<Characteristic>,
     primary: bool,
     pub(crate) handle: Option<u16>,
 }
@@ -30,23 +30,19 @@ impl Service {
         self
     }
 
-    pub(crate) fn register_self(&mut self, interface: u8, handle: u16) {
-        info!(
-            "Registering {} on interface {} with handle {:04x}.",
-            &self, interface, handle
-        );
+    pub(crate) fn register_self(&mut self, interface: u8) {
+        info!("Registering {} on interface {}.", &self, interface);
 
         let id: esp_gatt_srvc_id_t = esp_gatt_srvc_id_t {
-            is_primary: true,
             id: self.uuid.into(),
+            is_primary: self.primary,
         };
 
-        self.handle = Some(handle);
         unsafe {
             esp_nofail!(esp_ble_gatts_create_service(
                 interface,
                 leaky_box_raw!(id),
-                self.handle.unwrap()
+                16, // TODO: count the number of characteristics and descriptors.
             ));
         }
     }
