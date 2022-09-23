@@ -30,17 +30,19 @@ impl BleUuid {
             BleUuid::Uuid16(uuid) => {
                 let mut uuid128 = base_ble_uuid;
 
-                let uuid_as_bytes: [u8; 2] = uuid.to_be_bytes();
+                let mut uuid_as_bytes: [u8; 2] = uuid.to_be_bytes();
+                uuid_as_bytes.reverse();
 
-                uuid128[12..13].copy_from_slice(&uuid_as_bytes[..]);
+                uuid128[12..=13].copy_from_slice(&uuid_as_bytes[..]);
                 uuid128
             }
             BleUuid::Uuid32(uuid) => {
                 let mut uuid128 = base_ble_uuid;
 
-                let uuid_as_bytes: [u8; 4] = uuid.to_be_bytes();
+                let mut uuid_as_bytes: [u8; 4] = uuid.to_be_bytes();
+                uuid_as_bytes.reverse();
 
-                uuid128[12..15].copy_from_slice(&uuid_as_bytes[..]);
+                uuid128[12..=15].copy_from_slice(&uuid_as_bytes[..]);
                 uuid128
             }
             BleUuid::Uuid128(uuid) => *uuid,
@@ -48,21 +50,20 @@ impl BleUuid {
     }
 }
 
-#[allow(clippy::from_over_into)]
-impl Into<esp_gatt_id_t> for BleUuid {
-    fn into(self) -> esp_gatt_id_t {
+impl From<BleUuid> for esp_gatt_id_t {
+    fn from(val: BleUuid) -> Self {
         esp_gatt_id_t {
-            uuid: self.into(),
+            uuid: val.into(),
             inst_id: 0x00,
         }
     }
 }
 
-impl Into<esp_bt_uuid_t> for BleUuid {
-    fn into(self) -> esp_bt_uuid_t {
+impl From<BleUuid> for esp_bt_uuid_t {
+    fn from(val: BleUuid) -> Self {
         let mut result: esp_bt_uuid_t = esp_bt_uuid_t::default();
 
-        match self {
+        match val {
             BleUuid::Uuid16(uuid) => {
                 result.len = ESP_UUID_LEN_16 as u16;
                 result.uuid.uuid16 = uuid;

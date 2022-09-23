@@ -7,6 +7,7 @@ pub struct Descriptor {
     name: Option<String>,
     pub(crate) uuid: BleUuid,
     value: Vec<u8>,
+    pub(crate) attribute_handle: Option<u16>,
 }
 
 impl Descriptor {
@@ -15,6 +16,7 @@ impl Descriptor {
             name: Some(String::from(name)),
             uuid,
             value: Vec::new(),
+            attribute_handle: None,
         }
     }
 

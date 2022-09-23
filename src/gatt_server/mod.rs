@@ -1,13 +1,12 @@
-use std::ptr::replace;
 use std::sync::Mutex;
 
 use esp_idf_sys::{
     esp_ble_addr_type_t_BLE_ADDR_TYPE_RPA_PUBLIC, esp_ble_adv_channel_t_ADV_CHNL_ALL,
     esp_ble_adv_data_t, esp_ble_adv_filter_t_ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY,
     esp_ble_adv_params_t, esp_ble_adv_type_t_ADV_TYPE_IND, esp_ble_gap_cb_param_t,
-    esp_ble_gap_register_callback, esp_ble_gatts_cb_param_t, esp_ble_gatts_register_callback,
-    esp_bluedroid_enable, esp_bluedroid_init, esp_bt_controller_config_t, esp_bt_controller_enable,
-    esp_ble_gap_set_device_name,
+    esp_ble_gap_register_callback, esp_ble_gatts_cb_param_t,
+    esp_ble_gatts_register_callback, esp_bluedroid_enable,
+    esp_bluedroid_init, esp_bt_controller_config_t, esp_bt_controller_enable,
     esp_bt_controller_init, esp_bt_controller_mem_release, esp_bt_mode_t_ESP_BT_MODE_BLE,
     esp_bt_mode_t_ESP_BT_MODE_CLASSIC_BT, esp_gap_ble_cb_event_t, esp_gatt_if_t,
     esp_gatts_cb_event_t, esp_nofail, nvs_flash_erase, nvs_flash_init, AGC_RECORRECT_EN,
@@ -22,7 +21,7 @@ use esp_idf_sys::{
     ESP_BT_CTRL_CONFIG_VERSION, ESP_ERR_NVS_NEW_VERSION_FOUND, ESP_ERR_NVS_NO_FREE_PAGES,
     ESP_TASK_BT_CONTROLLER_PRIO, ESP_TASK_BT_CONTROLLER_STACK, MESH_DUPLICATE_SCAN_CACHE_SIZE,
     NORMAL_SCAN_DUPLICATE_CACHE_SIZE, SCAN_DUPLICATE_MODE, SCAN_DUPLICATE_TYPE_VALUE,
-    SLAVE_CE_LEN_MIN_DEFAULT, esp_bluedroid_get_status,
+    SLAVE_CE_LEN_MIN_DEFAULT, ESP_BLE_APPEARANCE_PULSE_OXIMETER_WRIST,
 };
 use lazy_static::lazy_static;
 use log::{info, warn};
@@ -32,7 +31,7 @@ pub use descriptor::Descriptor;
 pub use profile::Profile;
 pub use service::Service;
 
-use crate::leaky_box_raw;
+use crate::{leaky_box_raw};
 
 // Structs.
 mod characteristic;
@@ -63,7 +62,7 @@ lazy_static! {
             include_txpower: true,
             min_interval: 0x0006,
             max_interval: 0x0010,
-            appearance: 0x0000,
+            appearance: ESP_BLE_APPEARANCE_PULSE_OXIMETER_WRIST as i32,
             manufacturer_len: 0,
             p_manufacturer_data: std::ptr::null_mut(),
             service_data_len: 0,
@@ -100,14 +99,29 @@ impl GattServer {
         })
     }
 
-    pub fn add_profiles(&mut self, profiles: &[Profile]) -> &mut Self {
+    pub fn register_profiles(&mut self, profiles: &[Profile]) -> &mut Self {
         self.profiles.append(&mut profiles.to_vec());
         if self.started {
             warn!("In order to register the newly added profiles, you'll need to restart the GATT server.");
         }
 
+        // self.update_advertisement_data();
+
         self
     }
+
+    // pub fn update_advertisement_data(&mut self) {
+    //     // Iterate over all services and populate advertisement data.
+    //     let mut service_uuids: Vec<u8> = Vec::new();
+    //     for profile in &self.profiles {
+    //         for service in &profile.services {
+    //             service_uuids.extend_from_slice(&service.uuid.as_uuid128_array());
+    //         }
+    //     }
+        
+    //     self.advertisement_data.service_uuid_len = service_uuids.len() as u16;
+    //     self.advertisement_data.p_service_uuid = Box::into_raw(service_uuids.into_boxed_slice()) as *mut u8;
+    // }
 
     pub fn set_adv_params(&mut self, params: esp_ble_adv_params_t) -> &mut Self {
         self.advertisement_parameters = params;
@@ -116,10 +130,12 @@ impl GattServer {
 
     pub fn set_adv_data(&mut self, data: esp_ble_adv_data_t) -> &mut Self {
         self.advertisement_data = data;
+        // if auto_update {
+        //     self.update_advertisement_data();
+        // }
+
         self
     }
-
-    // TODO: Update adv data on service add!
 
     fn initialise_ble_stack(&mut self) {
         info!("Initialising BLE stack.");

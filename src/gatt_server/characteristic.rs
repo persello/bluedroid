@@ -9,7 +9,9 @@ pub struct Characteristic {
     pub(crate) uuid: BleUuid,
     value: Vec<u8>,
     pub(crate) descriptors: Vec<Descriptor>,
+    pub(crate) attribute_handle: Option<u16>,
     service_handle: Option<u16>,
+
 }
 
 impl Characteristic {
@@ -20,6 +22,7 @@ impl Characteristic {
             uuid,
             value: Vec::new(),
             descriptors: Vec::new(),
+            attribute_handle: None,
             service_handle: None,
         }
     }

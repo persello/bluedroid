@@ -11,18 +11,18 @@ fn main() {
 
     info!("Logger initialised.");
 
-    let main_profile = Profile::new("Main profile", 0xAA).add_service(
+    let main_profile = Profile::new("Main Profile", 0xAA).add_service(
         Service::new("Device Information", BleUuid::from_uuid16(0x180A), true).add_characteristic(
             Characteristic::new("Manufacturer Name", BleUuid::from_uuid16(0x2A29)).add_descriptor(
-                &mut Descriptor::new("Descriptor 1", BleUuid::from_uuid16(0x5678)),
+                &mut Descriptor::new("Descriptor 1", BleUuid::from_uuid16(0x2902)),
             ),
         ),
     );
 
-    let secondary_profile = Profile::new("Secondary profile", 0xBB).add_service(
-        Service::new("Secondary service", BleUuid::from_uuid16(0xBBBB), false).add_characteristic(
-            Characteristic::new("Secondary characteristic", BleUuid::from_uuid16(0xCCCC)).add_descriptor(
-                &mut Descriptor::new("Descriptor 1", BleUuid::from_uuid16(0x5678)),
+    let secondary_profile = Profile::new("Secondary Profile", 0xBB).add_service(
+        Service::new("Heart Rate", BleUuid::from_uuid16(0x180D), true).add_characteristic(
+            Characteristic::new("Heart Rate Measurement", BleUuid::from_uuid16(0x2A37)).add_descriptor(
+                &mut Descriptor::new("Descriptor 1", BleUuid::from_uuid16(0x2902)),
             ),
         ),
     );
@@ -30,10 +30,10 @@ fn main() {
     let profiles = [main_profile, secondary_profile];
 
     GLOBAL_GATT_SERVER
-    .lock()
-    .unwrap()
-    .as_mut()
-    .unwrap()
-    .add_profiles(&profiles)
-    .start();
+        .lock()
+        .unwrap()
+        .as_mut()
+        .unwrap()
+        .register_profiles(&profiles)
+        .start();
 }

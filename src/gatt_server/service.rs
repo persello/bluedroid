@@ -62,20 +62,13 @@ impl Service {
 
 impl std::fmt::Display for Service {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let handle_string = if let Some(handle) = self.handle {
-            format!("0x{:04x}", handle)
-        } else {
-            String::from("None")
-        };
-
         write!(
             f,
-            "{} ({}, handle: {})",
+            "{} ({})",
             self.name
                 .clone()
                 .unwrap_or_else(|| "Unnamed service".to_string()),
             self.uuid,
-            handle_string
         )
     }
 }

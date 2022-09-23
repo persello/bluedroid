@@ -40,20 +40,13 @@ impl Profile {
 
 impl std::fmt::Display for Profile {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let interface_string = if let Some(interface) = self.interface {
-            format!("{}", interface)
-        } else {
-            String::from("None")
-        };
-
         write!(
             f,
-            "{} (0x{:04x}, interface: {})",
+            "{} (0x{:04x})",
             self.name
                 .clone()
                 .unwrap_or_else(|| "Unnamed profile".to_string()),
             self.identifier,
-            interface_string
         )
     }
 }
