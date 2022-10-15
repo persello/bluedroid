@@ -46,7 +46,6 @@ impl GattServer {
                     warn!("BLE GAP advertisement start failed.");
                 } else {
                     info!("BLE GAP advertisement started.");
-
                 }
             }
             esp_gap_ble_cb_event_t_ESP_GAP_BLE_ADV_STOP_COMPLETE_EVT => {

@@ -1,4 +1,18 @@
-pub mod ble_uuid;
+// Leaky box: internally useful for ffi C interfacing.
 pub(crate) mod leaky_box;
-pub(crate) mod characteristic_properties;
-pub(crate) mod attribute_permissions;
+
+// BLE identifiers: public.
+mod ble_uuid;
+pub use ble_uuid::BleUuid;
+
+// Characteristic properties: public.
+mod characteristic_properties;
+pub use characteristic_properties::CharacteristicProperties;
+
+// Attribute permissions: public.
+mod attribute_permissions;
+pub use attribute_permissions::AttributePermissions;
+
+// Attribute control: public.
+mod attribute_control;
+pub use attribute_control::AttributeControl;

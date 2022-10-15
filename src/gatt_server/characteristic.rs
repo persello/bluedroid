@@ -1,4 +1,9 @@
-use crate::{gatt_server::descriptor::Descriptor, leaky_box_raw, utilities::ble_uuid::BleUuid};
+use crate::utilities::AttributeControl;
+use crate::utilities::AttributePermissions;
+use crate::utilities::CharacteristicProperties;
+use crate::{gatt_server::descriptor::Descriptor, leaky_box_raw, utilities::BleUuid};
+use esp_idf_sys::esp_attr_control_t;
+use esp_idf_sys::esp_attr_value_t;
 use esp_idf_sys::{esp_ble_gatts_add_char, esp_nofail};
 use log::info;
 use std::fmt::Formatter;
@@ -11,12 +16,19 @@ pub struct Characteristic {
     pub(crate) descriptors: Vec<Descriptor>,
     pub(crate) attribute_handle: Option<u16>,
     service_handle: Option<u16>,
-
+    permissions: AttributePermissions,
+    properties: CharacteristicProperties,
+    control: AttributeControl,
 }
 
 impl Characteristic {
     /// Creates a new [`Characteristic`].
-    pub fn new(name: &str, uuid: BleUuid) -> Characteristic {
+    pub fn new(
+        name: &str,
+        uuid: BleUuid,
+        permissions: AttributePermissions,
+        properties: CharacteristicProperties,
+    ) -> Characteristic {
         Characteristic {
             name: Some(String::from(name)),
             uuid,
@@ -24,6 +36,9 @@ impl Characteristic {
             descriptors: Vec::new(),
             attribute_handle: None,
             service_handle: None,
+            permissions,
+            properties,
+            control: AttributeControl::ResponseByApp,
         }
     }
 
@@ -36,19 +51,27 @@ impl Characteristic {
     /// Registers the [`Characteristic`] at the given service handle.
     pub(crate) fn register_self(&mut self, service_handle: u16) {
         info!(
-            "Registering {} into service at handle {}.",
+            "Registering {} into service at handle 0x{:04x}.",
             self, service_handle
         );
         self.service_handle = Some(service_handle);
 
+        if self.control == AttributeControl::AutomaticResponse && self.value.len() == 0 {
+            panic!("Cannot set attribute control to Auto without a value.");
+        }
+        
         unsafe {
             esp_nofail!(esp_ble_gatts_add_char(
                 service_handle,
                 leaky_box_raw!(self.uuid.into()),
-                0,
-                0,
-                std::ptr::null_mut(),
-                std::ptr::null_mut(),
+                self.permissions.into(),
+                self.properties.into(),
+                leaky_box_raw!(esp_attr_value_t {
+                    attr_max_len: self.value.len() as u16,
+                    attr_len: self.value.len() as u16,
+                    attr_value: leaky_box_raw!(self.value.as_slice()) as *mut u8,
+                }),
+                &mut self.control.into()
             ));
         }
     }

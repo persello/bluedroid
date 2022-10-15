@@ -1,5 +1,5 @@
 use crate::{
-    gatt_server::characteristic::Characteristic, leaky_box_raw, utilities::ble_uuid::BleUuid,
+    gatt_server::characteristic::Characteristic, leaky_box_raw, utilities::BleUuid,
 };
 use esp_idf_sys::*;
 use log::info;

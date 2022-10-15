@@ -70,7 +70,8 @@ lazy_static! {
             service_uuid_len: 0,
             p_service_uuid: std::ptr::null_mut(),
             flag: (ESP_BLE_ADV_FLAG_GEN_DISC | ESP_BLE_ADV_FLAG_BREDR_NOT_SPT) as u8,
-        }
+        },
+        name_set: false,
     }));
 }
 
@@ -79,6 +80,7 @@ pub struct GattServer {
     started: bool,
     advertisement_parameters: esp_ble_adv_params_t,
     advertisement_data: esp_ble_adv_data_t,
+    name_set: bool,
 }
 
 unsafe impl Send for GattServer {}

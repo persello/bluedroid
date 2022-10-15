@@ -1,19 +1,16 @@
-use crate::{
-    gatt_server::{service, GattServer},
-    leaky_box_raw,
-    utilities::ble_uuid::BleUuid,
-};
+use crate::{gatt_server::GattServer, leaky_box_raw, utilities::BleUuid};
 use esp_idf_sys::{
     esp_ble_gap_config_adv_data, esp_ble_gap_set_device_name, esp_ble_gap_start_advertising,
-    esp_ble_gatts_cb_param_t, esp_ble_gatts_start_service, esp_bt_status_t_ESP_BT_STATUS_SUCCESS,
-    esp_gatt_if_t, esp_gatt_status_t_ESP_GATT_OK, esp_gatts_cb_event_t,
-    esp_gatts_cb_event_t_ESP_GATTS_ADD_CHAR_DESCR_EVT, esp_gatts_cb_event_t_ESP_GATTS_ADD_CHAR_EVT,
-    esp_gatts_cb_event_t_ESP_GATTS_CANCEL_OPEN_EVT, esp_gatts_cb_event_t_ESP_GATTS_CONNECT_EVT,
-    esp_gatts_cb_event_t_ESP_GATTS_CREATE_EVT, esp_gatts_cb_event_t_ESP_GATTS_DISCONNECT_EVT,
-    esp_gatts_cb_event_t_ESP_GATTS_MTU_EVT, esp_gatts_cb_event_t_ESP_GATTS_REG_EVT,
-    esp_gatts_cb_event_t_ESP_GATTS_START_EVT, esp_nofail, esp_gatts_cb_event_t_ESP_GATTS_READ_EVT,
+    esp_ble_gatts_cb_param_t, esp_ble_gatts_send_response, esp_ble_gatts_start_service,
+    esp_bt_status_t_ESP_BT_STATUS_SUCCESS, esp_gatt_if_t, esp_gatt_status_t_ESP_GATT_OK,
+    esp_gatts_cb_event_t, esp_gatts_cb_event_t_ESP_GATTS_ADD_CHAR_DESCR_EVT,
+    esp_gatts_cb_event_t_ESP_GATTS_ADD_CHAR_EVT, esp_gatts_cb_event_t_ESP_GATTS_CANCEL_OPEN_EVT,
+    esp_gatts_cb_event_t_ESP_GATTS_CONNECT_EVT, esp_gatts_cb_event_t_ESP_GATTS_CREATE_EVT,
+    esp_gatts_cb_event_t_ESP_GATTS_DISCONNECT_EVT, esp_gatts_cb_event_t_ESP_GATTS_MTU_EVT,
+    esp_gatts_cb_event_t_ESP_GATTS_READ_EVT, esp_gatts_cb_event_t_ESP_GATTS_REG_EVT,
+    esp_gatts_cb_event_t_ESP_GATTS_START_EVT, esp_nofail, esp_gatt_rsp_t, esp_attr_value_t, esp_gatt_value_t, esp_gatt_auth_req_t_ESP_GATT_AUTH_REQ_NONE,
 };
-use log::{info, warn, debug};
+use log::{debug, info, warn};
 
 use crate::gatt_server::profile::Profile;
 
@@ -60,7 +57,7 @@ impl GattServer {
             esp_gatts_cb_event_t_ESP_GATTS_REG_EVT => {
                 let param = unsafe { (*param).reg };
                 if param.status == esp_gatt_status_t_ESP_GATT_OK {
-                    info!("New profile registered, setting GAP device name.");
+                    info!("New profile registered.");
 
                     let profile = self
                         .profiles
@@ -70,25 +67,28 @@ impl GattServer {
 
                     profile.interface = Some(gatts_if);
 
-                    // TODO: do once.
-                    unsafe {
-                        esp_nofail!(esp_ble_gap_set_device_name(
-                            // TODO: Update name.
-                            b"ESP32-GATT-Server\0".as_ptr() as *const _,
-                        ));
+                    if !self.name_set {
+                        unsafe {
+                            esp_nofail!(esp_ble_gap_set_device_name(
+                                // TODO: Update name.
+                                b"ESP32-GATT-Server\0".as_ptr() as *const _,
+                            ));
 
-                        // Advertisement data.
-                        esp_nofail!(esp_ble_gap_config_adv_data(leaky_box_raw!(
-                            self.advertisement_data
-                        )));
+                            self.name_set = true;
 
-                        // Scan response data.
-                        esp_nofail!(esp_ble_gap_config_adv_data(leaky_box_raw!(
-                            esp_idf_sys::esp_ble_adv_data_t {
-                                set_scan_rsp: true,
-                                ..self.advertisement_data
-                            }
-                        )));
+                            // Advertisement data.
+                            esp_nofail!(esp_ble_gap_config_adv_data(leaky_box_raw!(
+                                self.advertisement_data
+                            )));
+
+                            // Scan response data.
+                            esp_nofail!(esp_ble_gap_config_adv_data(leaky_box_raw!(
+                                esp_idf_sys::esp_ble_adv_data_t {
+                                    set_scan_rsp: true,
+                                    ..self.advertisement_data
+                                }
+                            )));
+                        }
                     }
                 }
             }
@@ -144,7 +144,7 @@ impl Profile {
                     warn!("GATT service registration failed.");
                 } else {
                     info!(
-                        "GATT service {} registered on handle {}.",
+                        "GATT service {} registered on handle 0x{:04x}.",
                         service,
                         service.handle.unwrap()
                     );
@@ -184,7 +184,10 @@ impl Profile {
                 if param.status != esp_gatt_status_t_ESP_GATT_OK {
                     warn!("GATT characteristic registration failed.");
                 } else {
-                    info!("GATT characteristic {} registered at attribute handle {}.", characteristic, param.attr_handle);
+                    info!(
+                        "GATT characteristic {} registered at attribute handle 0x{:04x}.",
+                        characteristic, param.attr_handle
+                    );
                     characteristic.attribute_handle = Some(param.attr_handle);
                     characteristic.register_descriptors();
                 }
@@ -203,20 +206,46 @@ impl Profile {
                 if param.status != esp_gatt_status_t_ESP_GATT_OK {
                     warn!("GATT descriptor registration failed.");
                 } else {
-                    info!("GATT descriptor {} registered at attribute handle {}.", descriptor, param.attr_handle);
+                    info!(
+                        "GATT descriptor {} registered at attribute handle 0x{:04x}.",
+                        descriptor, param.attr_handle
+                    );
                     descriptor.attribute_handle = Some(param.attr_handle);
                 }
             }
             esp_gatts_cb_event_t_ESP_GATTS_READ_EVT => {
                 let param = unsafe { (*param).read };
 
-                let chr = self.services
-                    .iter_mut()
-                    .flat_map(|service| service.characteristics.iter_mut())
-                    .find(|characteristic| characteristic.attribute_handle == Some(param.handle))
-                    .expect("Cannot find characteristic described by received handle.");
-
-                    info!("Received read event for characteristic {}.", chr);
+                for service in self.services.iter_mut() {
+                    for characteristic in service.characteristics.iter_mut() {
+                        if characteristic.attribute_handle == Some(param.handle) {
+                            info!("Received read event for characteristic {}.", characteristic);
+                            unsafe {
+                                esp_nofail!(esp_ble_gatts_send_response(
+                                gatts_if,
+                                param.conn_id,
+                                param.trans_id,
+                                esp_gatt_status_t_ESP_GATT_OK,
+                                leaky_box_raw!(esp_gatt_rsp_t {
+                                    attr_value: esp_gatt_value_t {
+                                        auth_req: 0,
+                                        handle: param.handle,
+                                        len: 1,
+                                        offset: 1,
+                                        value: [0; 600]
+                                    },
+                                })
+                            ));
+                            }
+                        } else {
+                            for descriptor in characteristic.descriptors.iter_mut() {
+                                if descriptor.attribute_handle == Some(param.handle) {
+                                    info!("Received read event for descriptor {}.", descriptor);
+                                }
+                            }
+                        }
+                    }
+                }
             }
             _ => {
                 warn!("Unhandled GATT server event: {:?}", event);

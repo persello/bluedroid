@@ -1,5 +1,7 @@
-use crate::{leaky_box_raw, utilities::ble_uuid::BleUuid};
-use esp_idf_sys::{esp_ble_gatts_add_char_descr, esp_nofail};
+use crate::{leaky_box_raw, utilities::{BleUuid, AttributePermissions, AttributeControl}};
+use esp_idf_sys::{
+    esp_attr_value_t, esp_ble_gatts_add_char_descr, esp_ble_gatts_set_attr_value, esp_nofail,
+};
 use log::info;
 
 #[derive(Debug, Clone)]
@@ -8,21 +10,44 @@ pub struct Descriptor {
     pub(crate) uuid: BleUuid,
     value: Vec<u8>,
     pub(crate) attribute_handle: Option<u16>,
+    pub permissions: AttributePermissions,
+    pub control: AttributeControl,
 }
 
 impl Descriptor {
-    pub fn new(name: &str, uuid: BleUuid) -> Descriptor {
+    pub fn new(name: &str, uuid: BleUuid, permissions: AttributePermissions) -> Descriptor {
         Descriptor {
             name: Some(String::from(name)),
             uuid,
             value: Vec::new(),
             attribute_handle: None,
+            permissions,
+            control: AttributeControl::AutomaticResponse,
         }
+    }
+    
+    // TODO: Create function to specify custom control.
+
+    pub fn set_value(&mut self, value: Vec<u8>) -> &mut Self {
+        self.value = value;
+        info!("Setting value of {} to {:?}.", self, self.value);
+        if let Some(handle) = self.attribute_handle {
+            unsafe {
+                esp_nofail!(esp_ble_gatts_set_attr_value(
+                    handle,
+                    self.value.len() as u16,
+                    self.value.as_slice().as_ptr()
+                ));
+            }
+        } else {
+            info!("Descriptor not registered yet, value will be set on registration.");
+        }
+        self
     }
 
     pub(crate) fn register_self(&mut self, service_handle: u16) {
         info!(
-            "Registering {} into service at handle {}.",
+            "Registering {} into service at handle 0x{:04x}.",
             self, service_handle
         );
 
@@ -30,9 +55,13 @@ impl Descriptor {
             esp_nofail!(esp_ble_gatts_add_char_descr(
                 service_handle,
                 leaky_box_raw!(self.uuid.into()),
-                0,
-                std::ptr::null_mut(),
-                std::ptr::null_mut(),
+                self.permissions.into(),
+                leaky_box_raw!(esp_attr_value_t {
+                    attr_max_len: self.value.len() as u16,
+                    attr_len: self.value.len() as u16,
+                    attr_value: self.value.as_mut_slice().as_mut_ptr(),
+                }),
+                leaky_box_raw!(self.control.into()),
             ));
         }
     }

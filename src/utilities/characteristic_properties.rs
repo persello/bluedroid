@@ -1,15 +1,30 @@
 use esp_idf_sys::*;
 
-#[derive(Default, Clone, Copy, Debug)]
-struct CharacteristicProperties {
-    broadcast: bool,
-    read: bool,
-    write_without_response: bool,
-    write: bool,
-    notify: bool,
-    indicate: bool,
-    authenticated_signed_writes: bool,
-    extended_properties: bool,
+#[derive(Clone, Copy, Debug)]
+pub struct CharacteristicProperties {
+    pub broadcast: bool,
+    pub read: bool,
+    pub write_without_response: bool,
+    pub write: bool,
+    pub notify: bool,
+    pub indicate: bool,
+    pub authenticated_signed_writes: bool,
+    pub extended_properties: bool,
+}
+
+impl Default for CharacteristicProperties {
+    fn default() -> Self {
+        Self {
+            broadcast: false,
+            read: false,
+            write_without_response: false,
+            write: false,
+            notify: false,
+            indicate: false,
+            authenticated_signed_writes: false,
+            extended_properties: false,
+        }
+    }
 }
 
 impl From<CharacteristicProperties> for esp_gatt_char_prop_t {
@@ -39,6 +54,6 @@ impl From<CharacteristicProperties> for esp_gatt_char_prop_t {
         if properties.extended_properties {
             result |= ESP_GATT_CHAR_PROP_BIT_EXT_PROP;
         }
-        result as u8
+        result as Self
     }
 }
