@@ -11,23 +11,19 @@ pub struct Descriptor {
     value: Vec<u8>,
     pub(crate) attribute_handle: Option<u16>,
     pub permissions: AttributePermissions,
-    pub control: AttributeControl,
 }
 
 impl Descriptor {
-    pub fn new(name: &str, uuid: BleUuid, permissions: AttributePermissions) -> Descriptor {
-        Descriptor {
+    pub fn new(name: &str, uuid: BleUuid, permissions: AttributePermissions) -> Self {
+        Self {
             name: Some(String::from(name)),
             uuid,
             value: Vec::new(),
             attribute_handle: None,
             permissions,
-            control: AttributeControl::AutomaticResponse,
         }
     }
     
-    // TODO: Create function to specify custom control.
-
     pub fn set_value(&mut self, value: Vec<u8>) -> &mut Self {
         self.value = value;
         info!("Setting value of {} to {:?}.", self, self.value);
@@ -40,7 +36,7 @@ impl Descriptor {
                 ));
             }
         } else {
-            info!("Descriptor not registered yet, value will be set on registration.");
+            info!("Descriptor {} not registered yet, value will be set on registration.", self);
         }
         self
     }
@@ -61,7 +57,8 @@ impl Descriptor {
                     attr_len: self.value.len() as u16,
                     attr_value: self.value.as_mut_slice().as_mut_ptr(),
                 }),
-                leaky_box_raw!(self.control.into()),
+                // TODO: Add custom control.
+                leaky_box_raw!(AttributeControl::AutomaticResponse(Vec::new()).into()),
             ));
         }
     }

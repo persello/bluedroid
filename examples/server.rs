@@ -1,4 +1,5 @@
 use bluedroid::gatt_server::{Characteristic, Descriptor, GLOBAL_GATT_SERVER};
+use bluedroid::utilities::AttributeControl;
 use bluedroid::{
     gatt_server::{Profile, Service},
     utilities::{AttributePermissions, BleUuid, CharacteristicProperties},
@@ -19,6 +20,9 @@ fn main() {
                 AttributePermissions::read(),
                 CharacteristicProperties::new().read(),
             )
+            .response(AttributeControl::AutomaticResponse(
+                "pulse.loop".as_bytes().to_vec(),
+            ))
             .add_descriptor(
                 Descriptor::new(
                     "Descriptor",
@@ -38,6 +42,10 @@ fn main() {
                 AttributePermissions::read(),
                 CharacteristicProperties::new().read(),
             )
+            .response(AttributeControl::ResponseByApp(|| {
+                info!("Heart Rate Measurement callback called.");
+                "Heart rate, response by app!".as_bytes().to_vec()
+            }))
             .add_descriptor(
                 Descriptor::new(
                     "Descriptor",
@@ -52,30 +60,19 @@ fn main() {
     let custom_profile = Profile::new("Custom Profile", 0xCC).add_service(
         Service::new(
             "Custom Service",
-            BleUuid::from_uuid128([
-                0xFA, 0xFA, 0xFA, 0xFA, 0xFA, 0xFA, 0xFA, 0xFA, 0xFA, 0xFA, 0xFA, 0xFA, 0xFA, 0xFA,
-                0xFA, 0xFA,
-            ]),
+            BleUuid::from_uuid128_string("FAFAFAFA-FAFA-FAFA-FAFA-FAFAFAFAFAFA"), // FAR BETTER, RUN RUN RUN RUN RUN RUN RUN AWAY...
             true,
         )
         .add_characteristic(
             Characteristic::new(
                 "Custom Characteristic",
-                BleUuid::from_uuid128([
-                    0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB,
-                    0xFB, 0xFB, 0xFB,
-                ]),
+                BleUuid::from_uuid128_string("FBFBFBFB-FBFB-FBFB-FBFB-FBFBFBFBFBFB"),
                 AttributePermissions::read(),
                 CharacteristicProperties::new().read(),
             )
-            .add_descriptor(
-                Descriptor::new(
-                    "Descriptor",
-                    BleUuid::from_uuid16(0x2901),
-                    AttributePermissions::read(),
-                )
-                .set_value("Custom Characteristic Descriptor".as_bytes().to_vec()),
-            ),
+            .add_descriptor(Descriptor::user_description(
+                "This is a custom characteristic.",
+            )),
         ),
     );
 

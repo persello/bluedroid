@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use crate::gatt_server::service::Service;
 use esp_idf_sys::*;
 use log::info;
@@ -20,8 +22,8 @@ impl Profile {
         }
     }
 
-    pub fn add_service(mut self, service: &Service) -> Self {
-        self.services.push(service.clone());
+    pub fn add_service<S: Borrow<Service>>(mut self, service: S) -> Self {
+        self.services.push(service.borrow().to_owned());
         self
     }
 

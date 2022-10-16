@@ -1,14 +1,19 @@
-use crate::{gatt_server::GattServer, leaky_box_raw, utilities::BleUuid};
+use crate::{
+    gatt_server::GattServer,
+    leaky_box_raw,
+    utilities::{AttributeControl, BleUuid},
+};
 use esp_idf_sys::{
     esp_ble_gap_config_adv_data, esp_ble_gap_set_device_name, esp_ble_gap_start_advertising,
     esp_ble_gatts_cb_param_t, esp_ble_gatts_send_response, esp_ble_gatts_start_service,
-    esp_bt_status_t_ESP_BT_STATUS_SUCCESS, esp_gatt_if_t, esp_gatt_status_t_ESP_GATT_OK,
-    esp_gatts_cb_event_t, esp_gatts_cb_event_t_ESP_GATTS_ADD_CHAR_DESCR_EVT,
-    esp_gatts_cb_event_t_ESP_GATTS_ADD_CHAR_EVT,
+    esp_bt_status_t_ESP_BT_STATUS_SUCCESS, esp_gatt_if_t, esp_gatt_rsp_t,
+    esp_gatt_status_t_ESP_GATT_OK, esp_gatt_value_t, esp_gatts_cb_event_t,
+    esp_gatts_cb_event_t_ESP_GATTS_ADD_CHAR_DESCR_EVT, esp_gatts_cb_event_t_ESP_GATTS_ADD_CHAR_EVT,
     esp_gatts_cb_event_t_ESP_GATTS_CONNECT_EVT, esp_gatts_cb_event_t_ESP_GATTS_CREATE_EVT,
     esp_gatts_cb_event_t_ESP_GATTS_DISCONNECT_EVT, esp_gatts_cb_event_t_ESP_GATTS_MTU_EVT,
     esp_gatts_cb_event_t_ESP_GATTS_READ_EVT, esp_gatts_cb_event_t_ESP_GATTS_REG_EVT,
-    esp_gatts_cb_event_t_ESP_GATTS_START_EVT, esp_nofail, esp_gatt_rsp_t, esp_gatt_value_t, esp_gatts_cb_event_t_ESP_GATTS_RESPONSE_EVT,
+    esp_gatts_cb_event_t_ESP_GATTS_RESPONSE_EVT, esp_gatts_cb_event_t_ESP_GATTS_START_EVT,
+    esp_nofail,
 };
 use log::{debug, info, warn};
 
@@ -227,22 +232,34 @@ impl Profile {
                     for characteristic in service.characteristics.iter_mut() {
                         if characteristic.attribute_handle == Some(param.handle) {
                             info!("Received read event for characteristic {}.", characteristic);
-                            unsafe {
-                                esp_nofail!(esp_ble_gatts_send_response(
-                                gatts_if,
-                                param.conn_id,
-                                param.trans_id,
-                                esp_gatt_status_t_ESP_GATT_OK,
-                                leaky_box_raw!(esp_gatt_rsp_t {
-                                    attr_value: esp_gatt_value_t {
-                                        auth_req: 0,
-                                        handle: param.handle,
-                                        len: 1,
-                                        offset: 1,
-                                        value: [0; 600]
-                                    },
-                                })
-                            ));
+
+                            // If the characteristic has a read handler, call it.
+                            if let AttributeControl::ResponseByApp(callback) =
+                                characteristic.control
+                            {
+                                let value = callback();
+
+                                // Extend the response to the maximum length.
+                                let mut response = [0u8; 600];
+                                response[..value.len()].copy_from_slice(&value);
+
+                                unsafe {
+                                    esp_nofail!(esp_ble_gatts_send_response(
+                                        gatts_if,
+                                        param.conn_id,
+                                        param.trans_id,
+                                        esp_gatt_status_t_ESP_GATT_OK,
+                                        leaky_box_raw!(esp_gatt_rsp_t {
+                                            attr_value: esp_gatt_value_t {
+                                                auth_req: 0,
+                                                handle: param.handle,
+                                                len: value.len() as u16,
+                                                offset: 0,
+                                                value: response,
+                                            },
+                                        })
+                                    ));
+                                }
                             }
                         } else {
                             for descriptor in characteristic.descriptors.iter_mut() {

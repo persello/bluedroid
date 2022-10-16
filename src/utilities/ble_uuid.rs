@@ -20,6 +20,24 @@ impl BleUuid {
         BleUuid::Uuid128(uuid)
     }
 
+    pub fn from_uuid128_string<S: AsRef<str>>(uuid: S) -> Self {
+        // Accepts the following formats:
+        // "00000000-0000-0000-0000-000000000000"
+        // "00000000000000000000000000000000"
+
+        let uuid = uuid.as_ref();
+
+        let mut uuid_bytes = [0u8; 16];
+        // Remove the dashes.
+        let uuid = uuid.replace('-', "");
+
+        for (i, byte) in uuid.as_bytes().chunks(2).enumerate() {
+            uuid_bytes[i] = u8::from_str_radix(std::str::from_utf8(byte).unwrap(), 16).unwrap();
+        }
+
+        BleUuid::Uuid128(uuid_bytes)
+    }
+
     pub fn as_uuid128_array(&self) -> [u8; 16] {
         let base_ble_uuid = [
             0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00,

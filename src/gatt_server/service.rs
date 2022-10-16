@@ -3,7 +3,7 @@ use crate::{
 };
 use esp_idf_sys::*;
 use log::info;
-use std::fmt::Formatter;
+use std::{fmt::Formatter, borrow::BorrowMut};
 
 #[derive(Debug, Clone)]
 pub struct Service {
@@ -25,8 +25,8 @@ impl Service {
         }
     }
 
-    pub fn add_characteristic(&mut self, characteristic: &mut Characteristic) -> &mut Self {
-        self.characteristics.push(characteristic.clone());
+    pub fn add_characteristic<C: BorrowMut<Characteristic>>(&mut self, characteristic: C) -> &mut Self {
+        self.characteristics.push(characteristic.borrow().to_owned());
         self
     }
 

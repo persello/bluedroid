@@ -39,6 +39,9 @@ mod descriptor;
 mod profile;
 mod service;
 
+// Custom stuff.
+mod custom_attributes;
+
 // Event handler.
 mod gap_event_handler;
 mod gatts_event_handler;

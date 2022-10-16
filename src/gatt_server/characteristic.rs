@@ -3,21 +3,24 @@ use crate::{
     leaky_box_raw,
     utilities::{AttributeControl, AttributePermissions, BleUuid, CharacteristicProperties},
 };
-use esp_idf_sys::{esp_attr_value_t, esp_ble_gatts_add_char, esp_nofail};
+use esp_idf_sys::{
+    esp_attr_value_t, esp_ble_gatts_add_char, esp_ble_gatts_set_attr_value, esp_nofail,
+};
 use log::info;
-use std::fmt::Formatter;
+use std::{fmt::Formatter, borrow::Borrow};
 
 #[derive(Debug, Clone)]
 pub struct Characteristic {
     name: Option<String>,
     pub(crate) uuid: BleUuid,
-    value: Vec<u8>,
+    internal_value: Vec<u8>,
+    internal_callback: Option<fn() -> Vec<u8>>,
     pub(crate) descriptors: Vec<Descriptor>,
     pub(crate) attribute_handle: Option<u16>,
     service_handle: Option<u16>,
     permissions: AttributePermissions,
     properties: CharacteristicProperties,
-    control: AttributeControl,
+    pub(crate) control: AttributeControl,
 }
 
 impl Characteristic {
@@ -31,19 +34,20 @@ impl Characteristic {
         Characteristic {
             name: Some(String::from(name)),
             uuid,
-            value: Vec::new(),
+            internal_value: vec![0],
+            internal_callback: None,
             descriptors: Vec::new(),
             attribute_handle: None,
             service_handle: None,
             permissions,
             properties,
-            control: AttributeControl::ResponseByApp,
+            control: AttributeControl::AutomaticResponse(vec![0]),
         }
     }
 
     /// Adds a [`Descriptor`] to the [`Characteristic`].
-    pub fn add_descriptor(&mut self, descriptor: &mut Descriptor) -> &mut Self {
-        self.descriptors.push(descriptor.clone());
+    pub fn add_descriptor<D: Borrow<Descriptor>>(&mut self, descriptor: D) -> &mut Self {
+        self.descriptors.push(descriptor.borrow().to_owned());
         self
     }
 
@@ -55,8 +59,8 @@ impl Characteristic {
         );
         self.service_handle = Some(service_handle);
 
-        if self.control == AttributeControl::AutomaticResponse && self.value.len() == 0 {
-            panic!("Cannot set attribute control to Auto without an initial value.");
+        if let AttributeControl::AutomaticResponse(_) = self.control && self.internal_value.is_empty() {
+            panic!("Automatic response requires a value to be set.");
         }
 
         unsafe {
@@ -66,11 +70,11 @@ impl Characteristic {
                 self.permissions.into(),
                 self.properties.into(),
                 leaky_box_raw!(esp_attr_value_t {
-                    attr_max_len: self.value.len() as u16,
-                    attr_len: self.value.len() as u16,
-                    attr_value: leaky_box_raw!(self.value.as_slice()) as *mut u8,
+                    attr_max_len: self.internal_value.len() as u16,
+                    attr_len: self.internal_value.len() as u16,
+                    attr_value: self.internal_value.as_mut_slice().as_mut_ptr(),
                 }),
-                &mut self.control.into()
+                leaky_box_raw!(self.control.clone().into()),
             ));
         }
     }
@@ -97,6 +101,30 @@ impl Characteristic {
                 ));
             });
     }
+
+    pub fn response(&mut self, response_type: AttributeControl) -> &mut Self {
+        self.control = response_type;
+
+        // If the response type is an automatic response, we need to update the value.
+        if let AttributeControl::AutomaticResponse(value) = &self.control {
+            self.internal_value = value.clone();
+
+            if let Some(handle) = self.attribute_handle {
+                unsafe {
+                    esp_nofail!(esp_ble_gatts_set_attr_value(
+                        handle,
+                        self.internal_value.len() as u16,
+                        self.internal_value.as_mut_slice().as_mut_ptr()
+                    ));
+                }
+            }
+        } else if let AttributeControl::ResponseByApp(callback) = &self.control {
+            self.internal_callback = Some(*callback);
+        }
+
+        self
+    }
+
 }
 
 impl std::fmt::Display for Characteristic {
