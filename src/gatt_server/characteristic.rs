@@ -1,10 +1,9 @@
-use crate::utilities::AttributeControl;
-use crate::utilities::AttributePermissions;
-use crate::utilities::CharacteristicProperties;
-use crate::{gatt_server::descriptor::Descriptor, leaky_box_raw, utilities::BleUuid};
-use esp_idf_sys::esp_attr_control_t;
-use esp_idf_sys::esp_attr_value_t;
-use esp_idf_sys::{esp_ble_gatts_add_char, esp_nofail};
+use crate::{
+    gatt_server::descriptor::Descriptor,
+    leaky_box_raw,
+    utilities::{AttributeControl, AttributePermissions, BleUuid, CharacteristicProperties},
+};
+use esp_idf_sys::{esp_attr_value_t, esp_ble_gatts_add_char, esp_nofail};
 use log::info;
 use std::fmt::Formatter;
 
@@ -57,9 +56,9 @@ impl Characteristic {
         self.service_handle = Some(service_handle);
 
         if self.control == AttributeControl::AutomaticResponse && self.value.len() == 0 {
-            panic!("Cannot set attribute control to Auto without a value.");
+            panic!("Cannot set attribute control to Auto without an initial value.");
         }
-        
+
         unsafe {
             esp_nofail!(esp_ble_gatts_add_char(
                 service_handle,

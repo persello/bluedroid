@@ -4,11 +4,11 @@ use esp_idf_sys::{
     esp_ble_gatts_cb_param_t, esp_ble_gatts_send_response, esp_ble_gatts_start_service,
     esp_bt_status_t_ESP_BT_STATUS_SUCCESS, esp_gatt_if_t, esp_gatt_status_t_ESP_GATT_OK,
     esp_gatts_cb_event_t, esp_gatts_cb_event_t_ESP_GATTS_ADD_CHAR_DESCR_EVT,
-    esp_gatts_cb_event_t_ESP_GATTS_ADD_CHAR_EVT, esp_gatts_cb_event_t_ESP_GATTS_CANCEL_OPEN_EVT,
+    esp_gatts_cb_event_t_ESP_GATTS_ADD_CHAR_EVT,
     esp_gatts_cb_event_t_ESP_GATTS_CONNECT_EVT, esp_gatts_cb_event_t_ESP_GATTS_CREATE_EVT,
     esp_gatts_cb_event_t_ESP_GATTS_DISCONNECT_EVT, esp_gatts_cb_event_t_ESP_GATTS_MTU_EVT,
     esp_gatts_cb_event_t_ESP_GATTS_READ_EVT, esp_gatts_cb_event_t_ESP_GATTS_REG_EVT,
-    esp_gatts_cb_event_t_ESP_GATTS_START_EVT, esp_nofail, esp_gatt_rsp_t, esp_attr_value_t, esp_gatt_value_t, esp_gatt_auth_req_t_ESP_GATT_AUTH_REQ_NONE,
+    esp_gatts_cb_event_t_ESP_GATTS_START_EVT, esp_nofail, esp_gatt_rsp_t, esp_gatt_value_t, esp_gatts_cb_event_t_ESP_GATTS_RESPONSE_EVT,
 };
 use log::{debug, info, warn};
 
@@ -91,6 +91,13 @@ impl GattServer {
                         }
                     }
                 }
+            }
+            esp_gatts_cb_event_t_ESP_GATTS_RESPONSE_EVT => {
+                let param = unsafe { (*param).rsp };
+                info!("Responded to handle 0x{:04x}.", param.handle);
+
+                // Do not pass this event to the profile handlers.
+                return;
             }
             _ => {}
         }

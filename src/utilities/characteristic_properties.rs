@@ -1,6 +1,6 @@
 use esp_idf_sys::*;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct CharacteristicProperties {
     pub broadcast: bool,
     pub read: bool,
@@ -12,18 +12,49 @@ pub struct CharacteristicProperties {
     pub extended_properties: bool,
 }
 
-impl Default for CharacteristicProperties {
-    fn default() -> Self {
-        Self {
-            broadcast: false,
-            read: false,
-            write_without_response: false,
-            write: false,
-            notify: false,
-            indicate: false,
-            authenticated_signed_writes: false,
-            extended_properties: false,
-        }
+impl CharacteristicProperties {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn broadcast(mut self) -> Self {
+        self.broadcast = true;
+        self
+    }
+
+    pub fn read(mut self) -> Self {
+        self.read = true;
+        self
+    }
+
+    pub fn write_without_response(mut self) -> Self {
+        self.write_without_response = true;
+        self
+    }
+
+    pub fn write(mut self) -> Self {
+        self.write = true;
+        self
+    }
+
+    pub fn notify(mut self) -> Self {
+        self.notify = true;
+        self
+    }
+
+    pub fn indicate(mut self) -> Self {
+        self.indicate = true;
+        self
+    }
+
+    pub fn authenticated_signed_writes(mut self) -> Self {
+        self.authenticated_signed_writes = true;
+        self
+    }
+
+    pub fn extended_properties(mut self) -> Self {
+        self.extended_properties = true;
+        self
     }
 }
 

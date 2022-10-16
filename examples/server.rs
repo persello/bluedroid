@@ -1,6 +1,6 @@
 use bluedroid::gatt_server::{Characteristic, Descriptor, GLOBAL_GATT_SERVER};
 use bluedroid::{
-    gatt_server::{GattServer, Profile, Service},
+    gatt_server::{Profile, Service},
     utilities::{AttributePermissions, BleUuid, CharacteristicProperties},
 };
 use log::info;
@@ -16,31 +16,17 @@ fn main() {
             Characteristic::new(
                 "Manufacturer Name",
                 BleUuid::from_uuid16(0x2A29),
-                AttributePermissions {
-                    encryption_required: false,
-                    read_access: true,
-                    write_access: true,
-                },
-                CharacteristicProperties {
-                    broadcast: false,
-                    read: true,
-                    write_without_response: false,
-                    write: false,
-                    notify: false,
-                    indicate: false,
-                    authenticated_signed_writes: false,
-                    extended_properties: false,
-                },
+                AttributePermissions::read(),
+                CharacteristicProperties::new().read(),
             )
-            .add_descriptor(&mut Descriptor::new(
-                "Descriptor",
-                BleUuid::from_uuid16(0x2901),
-                AttributePermissions {
-                    read_access: true,
-                    write_access: true,
-                    encryption_required: false,
-                },
-            ).set_value("Manufacturer Name Descriptor".as_bytes().to_vec())),
+            .add_descriptor(
+                Descriptor::new(
+                    "Descriptor",
+                    BleUuid::from_uuid16(0x2901),
+                    AttributePermissions::read(),
+                )
+                .set_value("Manufacturer Name Descriptor".as_bytes().to_vec()),
+            ),
         ),
     );
 
@@ -49,31 +35,14 @@ fn main() {
             Characteristic::new(
                 "Heart Rate Measurement",
                 BleUuid::from_uuid16(0x2A37),
-                AttributePermissions {
-                    encryption_required: false,
-                    read_access: true,
-                    write_access: true,
-                },
-                CharacteristicProperties {
-                    broadcast: false,
-                    read: true,
-                    write_without_response: false,
-                    write: false,
-                    notify: false,
-                    indicate: false,
-                    authenticated_signed_writes: false,
-                    extended_properties: false,
-                },
+                AttributePermissions::read(),
+                CharacteristicProperties::new().read(),
             )
             .add_descriptor(
-                &mut Descriptor::new(
+                Descriptor::new(
                     "Descriptor",
                     BleUuid::from_uuid16(0x2901),
-                    AttributePermissions {
-                        read_access: true,
-                        write_access: true,
-                        encryption_required: false,
-                    },
+                    AttributePermissions::read(),
                 )
                 .set_value("Heart Rate Measurement Descriptor".as_bytes().to_vec()),
             ),
@@ -96,31 +65,14 @@ fn main() {
                     0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB,
                     0xFB, 0xFB, 0xFB,
                 ]),
-                AttributePermissions {
-                    encryption_required: false,
-                    read_access: true,
-                    write_access: true,
-                },
-                CharacteristicProperties {
-                    broadcast: false,
-                    read: true,
-                    write_without_response: false,
-                    write: false,
-                    notify: false,
-                    indicate: false,
-                    authenticated_signed_writes: false,
-                    extended_properties: false,
-                },
+                AttributePermissions::read(),
+                CharacteristicProperties::new().read(),
             )
             .add_descriptor(
                 Descriptor::new(
                     "Descriptor",
                     BleUuid::from_uuid16(0x2901),
-                    AttributePermissions {
-                        read_access: true,
-                        write_access: true,
-                        encryption_required: false,
-                    },
+                    AttributePermissions::read(),
                 )
                 .set_value("Custom Characteristic Descriptor".as_bytes().to_vec()),
             ),
