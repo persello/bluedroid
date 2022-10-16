@@ -5,6 +5,12 @@ use bluedroid::{
     utilities::{AttributePermissions, BleUuid, CharacteristicProperties},
 };
 use log::info;
+use lazy_static::lazy_static;
+
+// Keep track of a counter value.
+lazy_static! {
+    static ref COUNTER: std::sync::Mutex<u8> = std::sync::Mutex::new(0);
+}
 
 fn main() {
     esp_idf_sys::link_patches();
@@ -44,7 +50,9 @@ fn main() {
             )
             .response(AttributeControl::ResponseByApp(|| {
                 info!("Heart Rate Measurement callback called.");
-                "Heart rate, response by app!".as_bytes().to_vec()
+                let mut counter = COUNTER.lock().unwrap();
+                *counter += 1;
+                format!("Heart rate, response #{}!", counter).as_bytes().to_vec()
             }))
             .add_descriptor(
                 Descriptor::new(
