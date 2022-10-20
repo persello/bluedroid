@@ -4,8 +4,8 @@ use bluedroid::{
     gatt_server::{Profile, Service},
     utilities::{AttributePermissions, BleUuid, CharacteristicProperties},
 };
-use log::info;
 use lazy_static::lazy_static;
+use log::info;
 
 // Keep track of a counter value.
 lazy_static! {
@@ -19,25 +19,41 @@ fn main() {
     info!("Logger initialised.");
 
     let main_profile = Profile::new("Main Profile", 0xAA).add_service(
-        Service::new("Device Information", BleUuid::from_uuid16(0x180A), true).add_characteristic(
-            Characteristic::new(
-                "Manufacturer Name",
-                BleUuid::from_uuid16(0x2A29),
-                AttributePermissions::read(),
-                CharacteristicProperties::new().read(),
-            )
-            .response(AttributeControl::AutomaticResponse(
-                "pulse.loop".as_bytes().to_vec(),
-            ))
-            .add_descriptor(
-                Descriptor::new(
-                    "Descriptor",
-                    BleUuid::from_uuid16(0x2901),
+        Service::new("Device Information", BleUuid::from_uuid16(0x180A), true)
+            .add_characteristic(
+                Characteristic::new(
+                    "Manufacturer Name",
+                    BleUuid::from_uuid16(0x2A29),
                     AttributePermissions::read(),
+                    CharacteristicProperties::new().read(),
                 )
-                .set_value("Manufacturer Name Descriptor".as_bytes().to_vec()),
+                .response(AttributeControl::AutomaticResponse(
+                    "pulse.loop".as_bytes().to_vec(),
+                )),
+            )
+            .add_characteristic(
+                Characteristic::new(
+                    "Model Number",
+                    BleUuid::from_uuid16(0x2A24),
+                    AttributePermissions::read(),
+                    CharacteristicProperties::new().read(),
+                )
+                .response(AttributeControl::AutomaticResponse(
+                    "pulse.loop".as_bytes().to_vec(),
+                )),
+            )
+            .add_characteristic(
+                Characteristic::new(
+                    "Serial Number",
+                    BleUuid::from_uuid16(0x2A25),
+                    AttributePermissions::read(),
+                    CharacteristicProperties::new().read(),
+                ), // .response(AttributeControl::ResponseByApp(|| {
+                   //     unsafe {
+                   //         esp_idf_sys::esp_flash_read_unique_chip_id(chip, out_id)
+                   //     }
+                   // })),
             ),
-        ),
     );
 
     let secondary_profile = Profile::new("Secondary Profile", 0xBB).add_service(
@@ -52,7 +68,9 @@ fn main() {
                 info!("Heart Rate Measurement callback called.");
                 let mut counter = COUNTER.lock().unwrap();
                 *counter += 1;
-                format!("Heart rate, response #{}!", counter).as_bytes().to_vec()
+                format!("Heart rate, response #{}!", counter)
+                    .as_bytes()
+                    .to_vec()
             }))
             .add_descriptor(
                 Descriptor::new(
@@ -92,5 +110,10 @@ fn main() {
         .as_mut()
         .unwrap()
         .register_profiles(&profiles)
+        .advertise_service(Service::new(
+            "Custom Service",
+            BleUuid::from_uuid128_string("FAFAFAFA-FAFA-FAFA-FAFA-FAFAFAFAFAFA"),
+            true,
+        ))
         .start();
 }

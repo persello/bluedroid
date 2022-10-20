@@ -88,10 +88,7 @@ impl GattServer {
 
                             // Scan response data.
                             esp_nofail!(esp_ble_gap_config_adv_data(leaky_box_raw!(
-                                esp_idf_sys::esp_ble_adv_data_t {
-                                    set_scan_rsp: true,
-                                    ..self.advertisement_data
-                                }
+                                self.scan_response_data
                             )));
                         }
                     }

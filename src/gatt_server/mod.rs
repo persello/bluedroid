@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::{sync::Mutex, borrow::BorrowMut};
 
 use esp_idf_sys::{
     esp_ble_addr_type_t_BLE_ADDR_TYPE_RPA_PUBLIC, esp_ble_adv_channel_t_ADV_CHNL_ALL,
@@ -74,6 +74,21 @@ lazy_static! {
             p_service_uuid: std::ptr::null_mut(),
             flag: (ESP_BLE_ADV_FLAG_GEN_DISC | ESP_BLE_ADV_FLAG_BREDR_NOT_SPT) as u8,
         },
+        scan_response_data: esp_ble_adv_data_t {
+            set_scan_rsp: true,
+            include_name: false,
+            include_txpower: false,
+            min_interval: 0x0006,
+            max_interval: 0x0010,
+            appearance: ESP_BLE_APPEARANCE_PULSE_OXIMETER_WRIST as i32,
+            manufacturer_len: 0,
+            p_manufacturer_data: std::ptr::null_mut(),
+            service_data_len: 0,
+            p_service_data: std::ptr::null_mut(),
+            service_uuid_len: 0,
+            p_service_uuid: std::ptr::null_mut(),
+            flag: (ESP_BLE_ADV_FLAG_GEN_DISC | ESP_BLE_ADV_FLAG_BREDR_NOT_SPT) as u8,
+        },
         name_set: false,
     }));
 }
@@ -83,6 +98,7 @@ pub struct GattServer {
     started: bool,
     advertisement_parameters: esp_ble_adv_params_t,
     advertisement_data: esp_ble_adv_data_t,
+    scan_response_data: esp_ble_adv_data_t,
     name_set: bool,
 }
 
@@ -110,23 +126,8 @@ impl GattServer {
             warn!("In order to register the newly added profiles, you'll need to restart the GATT server.");
         }
 
-        // self.update_advertisement_data();
-
         self
     }
-
-    // pub fn update_advertisement_data(&mut self) {
-    //     // Iterate over all services and populate advertisement data.
-    //     let mut service_uuids: Vec<u8> = Vec::new();
-    //     for profile in &self.profiles {
-    //         for service in &profile.services {
-    //             service_uuids.extend_from_slice(&service.uuid.as_uuid128_array());
-    //         }
-    //     }
-        
-    //     self.advertisement_data.service_uuid_len = service_uuids.len() as u16;
-    //     self.advertisement_data.p_service_uuid = Box::into_raw(service_uuids.into_boxed_slice()) as *mut u8;
-    // }
 
     pub fn set_adv_params(&mut self, params: esp_ble_adv_params_t) -> &mut Self {
         self.advertisement_parameters = params;
@@ -135,10 +136,14 @@ impl GattServer {
 
     pub fn set_adv_data(&mut self, data: esp_ble_adv_data_t) -> &mut Self {
         self.advertisement_data = data;
-        // if auto_update {
-        //     self.update_advertisement_data();
-        // }
 
+        self
+    }
+    
+    pub fn advertise_service(&mut self, service: Service) -> &mut Self {
+        self.scan_response_data.p_service_uuid = leaky_box_raw!(service.uuid.as_uuid128_array()) as *mut u8;
+        self.scan_response_data.service_uuid_len = service.uuid.as_uuid128_array().len() as u16;
+        
         self
     }
 
