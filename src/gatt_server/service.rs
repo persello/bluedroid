@@ -1,9 +1,7 @@
-use crate::{
-    gatt_server::characteristic::Characteristic, leaky_box_raw, utilities::BleUuid,
-};
+use crate::{gatt_server::characteristic::Characteristic, leaky_box_raw, utilities::BleUuid};
 use esp_idf_sys::*;
-use log::info;
-use std::{fmt::Formatter, borrow::BorrowMut};
+use log::debug;
+use std::{borrow::BorrowMut, fmt::Formatter};
 
 #[derive(Debug, Clone)]
 pub struct Service {
@@ -25,13 +23,17 @@ impl Service {
         }
     }
 
-    pub fn add_characteristic<C: BorrowMut<Characteristic>>(&mut self, characteristic: C) -> &mut Self {
-        self.characteristics.push(characteristic.borrow().to_owned());
+    pub fn add_characteristic<C: BorrowMut<Characteristic>>(
+        &mut self,
+        characteristic: C,
+    ) -> &mut Self {
+        self.characteristics
+            .push(characteristic.borrow().to_owned());
         self
     }
 
     pub(crate) fn register_self(&mut self, interface: u8) {
-        info!("Registering {} on interface {}.", &self, interface);
+        debug!("Registering {} on interface {}.", &self, interface);
 
         let id: esp_gatt_srvc_id_t = esp_gatt_srvc_id_t {
             id: self.uuid.into(),
@@ -48,7 +50,7 @@ impl Service {
     }
 
     pub(crate) fn register_characteristics(&mut self) {
-        info!("Registering {}'s characteristics.", &self);
+        debug!("Registering {}'s characteristics.", &self);
         self.characteristics
             .iter_mut()
             .for_each(|characteristic: &mut Characteristic| {

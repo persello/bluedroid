@@ -6,8 +6,8 @@ use crate::{
 use esp_idf_sys::{
     esp_attr_value_t, esp_ble_gatts_add_char, esp_ble_gatts_set_attr_value, esp_nofail,
 };
-use log::info;
-use std::{fmt::Formatter, borrow::Borrow};
+use log::debug;
+use std::{borrow::Borrow, fmt::Formatter};
 
 #[derive(Debug, Clone)]
 pub struct Characteristic {
@@ -53,7 +53,7 @@ impl Characteristic {
 
     /// Registers the [`Characteristic`] at the given service handle.
     pub(crate) fn register_self(&mut self, service_handle: u16) {
-        info!(
+        debug!(
             "Registering {} into service at handle 0x{:04x}.",
             self, service_handle
         );
@@ -92,7 +92,7 @@ impl Characteristic {
     /// Bluedroid does not offer a way to register descriptors to a specific characteristic.
     /// This is simply done by registering the characteristic and then registering its descriptors.
     pub(crate) fn register_descriptors(&mut self) {
-        info!("Registering {}'s descriptors.", &self);
+        debug!("Registering {}'s descriptors.", &self);
         self.descriptors
             .iter_mut()
             .for_each(|descriptor: &mut Descriptor| {
@@ -124,7 +124,6 @@ impl Characteristic {
 
         self
     }
-
 }
 
 impl std::fmt::Display for Characteristic {

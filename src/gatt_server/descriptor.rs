@@ -1,8 +1,11 @@
-use crate::{leaky_box_raw, utilities::{BleUuid, AttributePermissions, AttributeControl}};
+use crate::{
+    leaky_box_raw,
+    utilities::{AttributeControl, AttributePermissions, BleUuid},
+};
 use esp_idf_sys::{
     esp_attr_value_t, esp_ble_gatts_add_char_descr, esp_ble_gatts_set_attr_value, esp_nofail,
 };
-use log::info;
+use log::{debug, info};
 
 #[derive(Debug, Clone)]
 pub struct Descriptor {
@@ -23,7 +26,7 @@ impl Descriptor {
             permissions,
         }
     }
-    
+
     pub fn set_value(&mut self, value: Vec<u8>) -> &mut Self {
         self.value = value;
         if let Some(handle) = self.attribute_handle {
@@ -35,13 +38,16 @@ impl Descriptor {
                 ));
             }
         } else {
-            info!("Descriptor {} not registered yet, value will be set on registration.", self);
+            info!(
+                "Descriptor {} not registered yet, value will be set on registration.",
+                self
+            );
         }
         self
     }
 
     pub(crate) fn register_self(&mut self, service_handle: u16) {
-        info!(
+        debug!(
             "Registering {} into service at handle 0x{:04x}.",
             self, service_handle
         );

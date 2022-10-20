@@ -1,4 +1,6 @@
-use esp_idf_sys::{esp_bt_uuid_t, esp_gatt_id_t, ESP_UUID_LEN_16, ESP_UUID_LEN_128, ESP_UUID_LEN_32};
+use esp_idf_sys::{
+    esp_bt_uuid_t, esp_gatt_id_t, ESP_UUID_LEN_128, ESP_UUID_LEN_16, ESP_UUID_LEN_32,
+};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum BleUuid {

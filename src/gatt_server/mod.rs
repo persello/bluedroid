@@ -1,12 +1,11 @@
-use std::{sync::Mutex, borrow::BorrowMut};
+use std::sync::Mutex;
 
 use esp_idf_sys::{
     esp_ble_addr_type_t_BLE_ADDR_TYPE_RPA_PUBLIC, esp_ble_adv_channel_t_ADV_CHNL_ALL,
     esp_ble_adv_data_t, esp_ble_adv_filter_t_ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY,
     esp_ble_adv_params_t, esp_ble_adv_type_t_ADV_TYPE_IND, esp_ble_gap_cb_param_t,
-    esp_ble_gap_register_callback, esp_ble_gatts_cb_param_t,
-    esp_ble_gatts_register_callback, esp_bluedroid_enable,
-    esp_bluedroid_init, esp_bt_controller_config_t, esp_bt_controller_enable,
+    esp_ble_gap_register_callback, esp_ble_gatts_cb_param_t, esp_ble_gatts_register_callback,
+    esp_bluedroid_enable, esp_bluedroid_init, esp_bt_controller_config_t, esp_bt_controller_enable,
     esp_bt_controller_init, esp_bt_controller_mem_release, esp_bt_mode_t_ESP_BT_MODE_BLE,
     esp_bt_mode_t_ESP_BT_MODE_CLASSIC_BT, esp_gap_ble_cb_event_t, esp_gatt_if_t,
     esp_gatts_cb_event_t, esp_nofail, nvs_flash_erase, nvs_flash_init, AGC_RECORRECT_EN,
@@ -17,11 +16,12 @@ use esp_idf_sys::{
     CONFIG_BT_CTRL_HW_CCA_VAL, CONFIG_BT_CTRL_MODE_EFF, CONFIG_BT_CTRL_PINNED_TO_CORE,
     CONFIG_BT_CTRL_RX_ANTENNA_INDEX_EFF, CONFIG_BT_CTRL_SLEEP_CLOCK_EFF,
     CONFIG_BT_CTRL_SLEEP_MODE_EFF, CONFIG_BT_CTRL_TX_ANTENNA_INDEX_EFF,
-    ESP_BLE_ADV_FLAG_BREDR_NOT_SPT, ESP_BLE_ADV_FLAG_GEN_DISC, ESP_BT_CTRL_CONFIG_MAGIC_VAL,
+    ESP_BLE_ADV_FLAG_BREDR_NOT_SPT, ESP_BLE_ADV_FLAG_GEN_DISC,
+    ESP_BLE_APPEARANCE_PULSE_OXIMETER_WRIST, ESP_BT_CTRL_CONFIG_MAGIC_VAL,
     ESP_BT_CTRL_CONFIG_VERSION, ESP_ERR_NVS_NEW_VERSION_FOUND, ESP_ERR_NVS_NO_FREE_PAGES,
     ESP_TASK_BT_CONTROLLER_PRIO, ESP_TASK_BT_CONTROLLER_STACK, MESH_DUPLICATE_SCAN_CACHE_SIZE,
     NORMAL_SCAN_DUPLICATE_CACHE_SIZE, SCAN_DUPLICATE_MODE, SCAN_DUPLICATE_TYPE_VALUE,
-    SLAVE_CE_LEN_MIN_DEFAULT, ESP_BLE_APPEARANCE_PULSE_OXIMETER_WRIST,
+    SLAVE_CE_LEN_MIN_DEFAULT,
 };
 use lazy_static::lazy_static;
 use log::{info, warn};
@@ -31,7 +31,7 @@ pub use descriptor::Descriptor;
 pub use profile::Profile;
 pub use service::Service;
 
-use crate::{leaky_box_raw};
+use crate::leaky_box_raw;
 
 // Structs.
 mod characteristic;
@@ -139,11 +139,12 @@ impl GattServer {
 
         self
     }
-    
+
     pub fn advertise_service(&mut self, service: Service) -> &mut Self {
-        self.scan_response_data.p_service_uuid = leaky_box_raw!(service.uuid.as_uuid128_array()) as *mut u8;
+        self.scan_response_data.p_service_uuid =
+            leaky_box_raw!(service.uuid.as_uuid128_array()) as *mut u8;
         self.scan_response_data.service_uuid_len = service.uuid.as_uuid128_array().len() as u16;
-        
+
         self
     }
 

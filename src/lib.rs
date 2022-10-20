@@ -3,7 +3,7 @@ pub mod gatt_server;
 pub mod utilities;
 
 // TODO: Better log levels.
-// TODO: Custom errors.
+// TODO: Custom errors instead of panics.
 // TODO: Clippy.
 // TODO: R/W closures of characteristics should be generic in T, not just u8 slices.
 // TODO: Remove references to pulse.loop.

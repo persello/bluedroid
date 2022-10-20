@@ -1,6 +1,7 @@
-use crate::{gatt_server::Descriptor, utilities::{BleUuid, AttributePermissions, CharacteristicProperties, AttributeControl}};
-
-use super::Characteristic;
+use crate::{
+    gatt_server::Descriptor,
+    utilities::{AttributePermissions, BleUuid},
+};
 
 impl Descriptor {
     pub fn user_description<S: AsRef<str>>(description: S) -> Self {
@@ -8,6 +9,8 @@ impl Descriptor {
             "User Description",
             BleUuid::from_uuid16(0x2901),
             AttributePermissions::read(),
-        ).set_value(description.as_ref().as_bytes().to_vec()).to_owned()
+        )
+        .set_value(description.as_ref().as_bytes().to_vec())
+        .to_owned()
     }
 }

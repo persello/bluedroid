@@ -54,7 +54,7 @@ impl GattServer {
             }
             esp_gatts_cb_event_t_ESP_GATTS_MTU_EVT => {
                 let param = unsafe { (*param).mtu };
-                info!("MTU changed to {}.", param.mtu);
+                debug!("MTU changed to {}.", param.mtu);
 
                 // Do not pass this event to the profile handlers.
                 return;
@@ -62,7 +62,7 @@ impl GattServer {
             esp_gatts_cb_event_t_ESP_GATTS_REG_EVT => {
                 let param = unsafe { (*param).reg };
                 if param.status == esp_gatt_status_t_ESP_GATT_OK {
-                    info!("New profile registered.");
+                    debug!("New profile registered.");
 
                     let profile = self
                         .profiles
@@ -96,7 +96,7 @@ impl GattServer {
             }
             esp_gatts_cb_event_t_ESP_GATTS_RESPONSE_EVT => {
                 let param = unsafe { (*param).rsp };
-                info!("Responded to handle 0x{:04x}.", param.handle);
+                debug!("Responded to handle 0x{:04x}.", param.handle);
 
                 // Do not pass this event to the profile handlers.
                 return;
@@ -177,7 +177,7 @@ impl Profile {
                 if param.status != esp_gatt_status_t_ESP_GATT_OK {
                     warn!("GATT service {} failed to start.", service);
                 } else {
-                    info!("GATT service {} started.", service);
+                    debug!("GATT service {} started.", service);
                 }
             }
             esp_gatts_cb_event_t_ESP_GATTS_ADD_CHAR_EVT => {
@@ -228,7 +228,7 @@ impl Profile {
                 for service in self.services.iter_mut() {
                     for characteristic in service.characteristics.iter_mut() {
                         if characteristic.attribute_handle == Some(param.handle) {
-                            info!("Received read event for characteristic {}.", characteristic);
+                            debug!("Received read event for characteristic {}.", characteristic);
 
                             // If the characteristic has a read handler, call it.
                             if let AttributeControl::ResponseByApp(callback) =
@@ -261,7 +261,7 @@ impl Profile {
                         } else {
                             for descriptor in characteristic.descriptors.iter_mut() {
                                 if descriptor.attribute_handle == Some(param.handle) {
-                                    info!("Received read event for descriptor {}.", descriptor);
+                                    debug!("Received read event for descriptor {}.", descriptor);
                                 }
                             }
                         }
