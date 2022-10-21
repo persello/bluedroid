@@ -2,7 +2,6 @@ use esp_idf_sys::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AttributeControl {
-    // TODO: Add a callback function.
     ResponseByApp(fn() -> Vec<u8>),
     AutomaticResponse(Vec<u8>),
 }

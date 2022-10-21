@@ -2,14 +2,14 @@ use esp_idf_sys::*;
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CharacteristicProperties {
-    pub broadcast: bool,
-    pub read: bool,
-    pub write_without_response: bool,
-    pub write: bool,
-    pub notify: bool,
-    pub indicate: bool,
-    pub authenticated_signed_writes: bool,
-    pub extended_properties: bool,
+    broadcast: bool,
+    read: bool,
+    write_without_response: bool,
+    write: bool,
+    notify: bool,
+    indicate: bool,
+    authenticated_signed_writes: bool,
+    extended_properties: bool,
 }
 
 impl CharacteristicProperties {

@@ -26,12 +26,12 @@ use esp_idf_sys::{
 use lazy_static::lazy_static;
 use log::{info, warn};
 
+use crate::leaky_box_raw;
+
 pub use characteristic::Characteristic;
 pub use descriptor::Descriptor;
 pub use profile::Profile;
 pub use service::Service;
-
-use crate::leaky_box_raw;
 
 // Structs.
 mod characteristic;
@@ -90,6 +90,7 @@ lazy_static! {
             flag: (ESP_BLE_ADV_FLAG_GEN_DISC | ESP_BLE_ADV_FLAG_BREDR_NOT_SPT) as u8,
         },
         name_set: false,
+        device_name: "ESP32".to_string(),
     }));
 }
 
@@ -99,6 +100,7 @@ pub struct GattServer {
     advertisement_parameters: esp_ble_adv_params_t,
     advertisement_data: esp_ble_adv_data_t,
     scan_response_data: esp_ble_adv_data_t,
+    device_name: String,
     name_set: bool,
 }
 
@@ -120,7 +122,19 @@ impl GattServer {
         })
     }
 
-    pub fn register_profiles(&mut self, profiles: &[Profile]) -> &mut Self {
+    pub fn device_name<S: Into<String>>(&mut self, name: S) -> &mut Self {
+        if self.name_set {
+            warn!("Device name already set. Please set the device name before starting the server.");
+            return self;
+        }
+
+        self.device_name = name.into();
+        self.device_name.push('\0');
+
+        self
+    }
+
+    pub fn add_profiles(&mut self, profiles: &[Profile]) -> &mut Self {
         self.profiles.append(&mut profiles.to_vec());
         if self.started {
             warn!("In order to register the newly added profiles, you'll need to restart the GATT server.");

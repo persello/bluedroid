@@ -1,3 +1,5 @@
+use std::ffi::c_char;
+
 use crate::{
     gatt_server::GattServer,
     leaky_box_raw,
@@ -75,8 +77,7 @@ impl GattServer {
                     if !self.name_set {
                         unsafe {
                             esp_nofail!(esp_ble_gap_set_device_name(
-                                // TODO: Update name.
-                                b"ESP32-GATT-Server\0".as_ptr() as *const _,
+                                self.device_name.as_ptr() as *const c_char
                             ));
 
                             self.name_set = true;

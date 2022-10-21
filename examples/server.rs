@@ -48,11 +48,7 @@ fn main() {
                     BleUuid::from_uuid16(0x2A25),
                     AttributePermissions::read(),
                     CharacteristicProperties::new().read(),
-                ), // .response(AttributeControl::ResponseByApp(|| {
-                   //     unsafe {
-                   //         esp_idf_sys::esp_flash_read_unique_chip_id(chip, out_id)
-                   //     }
-                   // })),
+                ),
             ),
     );
 
@@ -109,7 +105,8 @@ fn main() {
         .unwrap()
         .as_mut()
         .unwrap()
-        .register_profiles(&profiles)
+        .add_profiles(&profiles)
+        .device_name("ESP32-GATT-Server")
         .advertise_service(Service::new(
             "Custom Service",
             BleUuid::from_uuid128_string("FAFAFAFA-FAFA-FAFA-FAFA-FAFAFAFAFAFA"),

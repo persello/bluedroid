@@ -13,6 +13,7 @@ pub struct Descriptor {
     pub(crate) uuid: BleUuid,
     value: Vec<u8>,
     pub(crate) attribute_handle: Option<u16>,
+    // TODO: Private.
     pub permissions: AttributePermissions,
 }
 
