@@ -74,13 +74,13 @@ impl GattServer {
 
                     profile.interface = Some(gatts_if);
 
-                    if !self.name_set {
+                    if !self.advertisement_configured {
                         unsafe {
                             esp_nofail!(esp_ble_gap_set_device_name(
                                 self.device_name.as_ptr() as *const c_char
                             ));
 
-                            self.name_set = true;
+                            self.advertisement_configured = true;
 
                             // Advertisement data.
                             esp_nofail!(esp_ble_gap_config_adv_data(leaky_box_raw!(

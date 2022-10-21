@@ -5,6 +5,10 @@ pub(crate) mod leaky_box;
 mod ble_uuid;
 pub use ble_uuid::BleUuid;
 
+// Bluetooth device appearance: public.
+mod appearance;
+pub use appearance::Appearance;
+
 // Characteristic properties: public.
 mod characteristic_properties;
 pub use characteristic_properties::CharacteristicProperties;

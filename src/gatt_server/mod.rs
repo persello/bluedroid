@@ -16,8 +16,7 @@ use esp_idf_sys::{
     CONFIG_BT_CTRL_HW_CCA_VAL, CONFIG_BT_CTRL_MODE_EFF, CONFIG_BT_CTRL_PINNED_TO_CORE,
     CONFIG_BT_CTRL_RX_ANTENNA_INDEX_EFF, CONFIG_BT_CTRL_SLEEP_CLOCK_EFF,
     CONFIG_BT_CTRL_SLEEP_MODE_EFF, CONFIG_BT_CTRL_TX_ANTENNA_INDEX_EFF,
-    ESP_BLE_ADV_FLAG_BREDR_NOT_SPT, ESP_BLE_ADV_FLAG_GEN_DISC,
-    ESP_BLE_APPEARANCE_PULSE_OXIMETER_WRIST, ESP_BT_CTRL_CONFIG_MAGIC_VAL,
+    ESP_BLE_ADV_FLAG_BREDR_NOT_SPT, ESP_BLE_ADV_FLAG_GEN_DISC, ESP_BT_CTRL_CONFIG_MAGIC_VAL,
     ESP_BT_CTRL_CONFIG_VERSION, ESP_ERR_NVS_NEW_VERSION_FOUND, ESP_ERR_NVS_NO_FREE_PAGES,
     ESP_TASK_BT_CONTROLLER_PRIO, ESP_TASK_BT_CONTROLLER_STACK, MESH_DUPLICATE_SCAN_CACHE_SIZE,
     NORMAL_SCAN_DUPLICATE_CACHE_SIZE, SCAN_DUPLICATE_MODE, SCAN_DUPLICATE_TYPE_VALUE,
@@ -26,7 +25,7 @@ use esp_idf_sys::{
 use lazy_static::lazy_static;
 use log::{info, warn};
 
-use crate::leaky_box_raw;
+use crate::{leaky_box_raw, utilities::Appearance};
 
 pub use characteristic::Characteristic;
 pub use descriptor::Descriptor;
@@ -65,7 +64,7 @@ lazy_static! {
             include_txpower: true,
             min_interval: 0x0006,
             max_interval: 0x0010,
-            appearance: ESP_BLE_APPEARANCE_PULSE_OXIMETER_WRIST as i32,
+            appearance: Appearance::GenericUnknown.into(),
             manufacturer_len: 0,
             p_manufacturer_data: std::ptr::null_mut(),
             service_data_len: 0,
@@ -80,7 +79,7 @@ lazy_static! {
             include_txpower: false,
             min_interval: 0x0006,
             max_interval: 0x0010,
-            appearance: ESP_BLE_APPEARANCE_PULSE_OXIMETER_WRIST as i32,
+            appearance: Appearance::GenericUnknown.into(),
             manufacturer_len: 0,
             p_manufacturer_data: std::ptr::null_mut(),
             service_data_len: 0,
@@ -89,7 +88,7 @@ lazy_static! {
             p_service_uuid: std::ptr::null_mut(),
             flag: (ESP_BLE_ADV_FLAG_GEN_DISC | ESP_BLE_ADV_FLAG_BREDR_NOT_SPT) as u8,
         },
-        name_set: false,
+        advertisement_configured: false,
         device_name: "ESP32".to_string(),
     }));
 }
@@ -101,7 +100,7 @@ pub struct GattServer {
     advertisement_data: esp_ble_adv_data_t,
     scan_response_data: esp_ble_adv_data_t,
     device_name: String,
-    name_set: bool,
+    advertisement_configured: bool,
 }
 
 unsafe impl Send for GattServer {}
@@ -123,13 +122,27 @@ impl GattServer {
     }
 
     pub fn device_name<S: Into<String>>(&mut self, name: S) -> &mut Self {
-        if self.name_set {
-            warn!("Device name already set. Please set the device name before starting the server.");
+        if self.advertisement_configured {
+            warn!(
+                "Device name already set. Please set the device name before starting the server."
+            );
             return self;
         }
 
         self.device_name = name.into();
         self.device_name.push('\0');
+
+        self
+    }
+
+    pub fn appearance(&mut self, appearance: Appearance) -> &mut Self {
+        if self.advertisement_configured {
+            warn!("Appearance already set. Please set the appearance before starting the server.");
+            return self;
+        }
+        
+        self.advertisement_data.appearance = appearance.into();
+        self.scan_response_data.appearance = appearance.into();
 
         self
     }
