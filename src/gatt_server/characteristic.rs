@@ -14,7 +14,7 @@ pub struct Characteristic {
     name: Option<String>,
     pub(crate) uuid: BleUuid,
     internal_value: Vec<u8>,
-    internal_callback: Option<fn() -> Vec<u8>>,
+    pub(crate) write_callback: Option<fn(Vec<u8>)>,
     pub(crate) descriptors: Vec<Descriptor>,
     pub(crate) attribute_handle: Option<u16>,
     service_handle: Option<u16>,
@@ -35,7 +35,7 @@ impl Characteristic {
             name: Some(String::from(name)),
             uuid,
             internal_value: vec![0],
-            internal_callback: None,
+            write_callback: None,
             descriptors: Vec::new(),
             attribute_handle: None,
             service_handle: None,
@@ -102,7 +102,7 @@ impl Characteristic {
             });
     }
 
-    pub fn response(&mut self, response_type: AttributeControl) -> &mut Self {
+    pub fn on_read(&mut self, response_type: AttributeControl) -> &mut Self {
         self.control = response_type;
 
         // If the response type is an automatic response, we need to update the value.
@@ -118,10 +118,15 @@ impl Characteristic {
                     ));
                 }
             }
-        } else if let AttributeControl::ResponseByApp(callback) = &self.control {
-            self.internal_callback = Some(*callback);
         }
 
+        // Else the callback is already set in the control property.
+
+        self
+    }
+
+    pub fn on_write(&mut self, callback: fn(Vec<u8>)) -> &mut Self {
+        self.write_callback = Some(callback);
         self
     }
 }

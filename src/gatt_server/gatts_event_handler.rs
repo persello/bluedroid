@@ -15,7 +15,7 @@ use esp_idf_sys::{
     esp_gatts_cb_event_t_ESP_GATTS_DISCONNECT_EVT, esp_gatts_cb_event_t_ESP_GATTS_MTU_EVT,
     esp_gatts_cb_event_t_ESP_GATTS_READ_EVT, esp_gatts_cb_event_t_ESP_GATTS_REG_EVT,
     esp_gatts_cb_event_t_ESP_GATTS_RESPONSE_EVT, esp_gatts_cb_event_t_ESP_GATTS_START_EVT,
-    esp_nofail,
+    esp_nofail, esp_gatts_cb_event_t_ESP_GATTS_WRITE_EVT,
 };
 use log::{debug, info, warn};
 
@@ -223,6 +223,27 @@ impl Profile {
                     descriptor.attribute_handle = Some(param.attr_handle);
                 }
             }
+            esp_gatts_cb_event_t_ESP_GATTS_WRITE_EVT => {
+                let param = unsafe { (*param).write };
+
+                for service in self.services.iter_mut() {
+                    for characteristic in service.characteristics.iter_mut() {
+                        if characteristic.attribute_handle == Some(param.handle) {
+                            debug!("Received write event for characteristic {}.", characteristic);
+
+                            // If the characteristic has a write handler, call it.
+                            if let Some(callback) = characteristic.write_callback {
+                                let value = unsafe {
+                                    std::slice::from_raw_parts(param.value, param.len as usize)
+                                }.to_vec();
+
+                                callback(value);
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
             esp_gatts_cb_event_t_ESP_GATTS_READ_EVT => {
                 let param = unsafe { (*param).read };
 
@@ -258,6 +279,8 @@ impl Profile {
                                         })
                                     ));
                                 }
+
+                                return;
                             }
                         } else {
                             for descriptor in characteristic.descriptors.iter_mut() {

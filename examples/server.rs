@@ -7,9 +7,11 @@ use bluedroid::{
 use lazy_static::lazy_static;
 use log::info;
 
-// Keep track of a counter value.
 lazy_static! {
+    // Keep track of a counter value.
     static ref COUNTER: std::sync::Mutex<u8> = std::sync::Mutex::new(0);
+    // Keep track of a writable value.
+    static ref WRITABLE: std::sync::Mutex<u8> = std::sync::Mutex::new(0);
 }
 
 fn main() {
@@ -27,7 +29,7 @@ fn main() {
                     AttributePermissions::read(),
                     CharacteristicProperties::new().read(),
                 )
-                .response(AttributeControl::AutomaticResponse(
+                .on_read(AttributeControl::AutomaticResponse(
                     "pulse.loop".as_bytes().to_vec(),
                 )),
             )
@@ -38,7 +40,7 @@ fn main() {
                     AttributePermissions::read(),
                     CharacteristicProperties::new().read(),
                 )
-                .response(AttributeControl::AutomaticResponse(
+                .on_read(AttributeControl::AutomaticResponse(
                     "pulse.loop".as_bytes().to_vec(),
                 )),
             )
@@ -60,7 +62,7 @@ fn main() {
                 AttributePermissions::read(),
                 CharacteristicProperties::new().read(),
             )
-            .response(AttributeControl::ResponseByApp(|| {
+            .on_read(AttributeControl::ResponseByApp(|| {
                 info!("Heart Rate Measurement callback called.");
                 let mut counter = COUNTER.lock().unwrap();
                 *counter += 1;
@@ -89,11 +91,24 @@ fn main() {
             Characteristic::new(
                 "Custom Characteristic",
                 BleUuid::from_uuid128_string("FBFBFBFB-FBFB-FBFB-FBFB-FBFBFBFBFBFB"),
-                AttributePermissions::read(),
-                CharacteristicProperties::new().read(),
+                AttributePermissions::read_write(),
+                CharacteristicProperties::new().read().write(),
             )
+            .on_read(AttributeControl::ResponseByApp(|| {
+                info!("Custom Characteristic read callback called.");
+                let writable = WRITABLE.lock().unwrap();
+                format!("Custom Characteristic read, value is {}!", writable)
+                    .as_bytes()
+                    .to_vec()
+            }))
+            .on_write(|data| {
+                info!("Custom Characteristic write callback called.");
+                let mut writable = WRITABLE.lock().unwrap();
+                *writable = data[0];
+                info!("Custom Characteristic write, value is now {}!", writable);
+            })
             .add_descriptor(Descriptor::user_description(
-                "This is a custom characteristic.",
+                "This is a custom characteristic."
             )),
         ),
     );
