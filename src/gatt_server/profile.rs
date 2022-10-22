@@ -1,13 +1,13 @@
-use std::borrow::Borrow;
+use std::{cell::RefCell, sync::Arc};
 
-use crate::gatt_server::service::Service;
+use crate::{gatt_server::service::Service, utilities::BleUuid};
 use esp_idf_sys::*;
-use log::debug;
+use log::{debug, info};
 
 #[derive(Debug, Clone)]
 pub struct Profile {
     name: Option<String>,
-    pub(crate) services: Vec<Service>,
+    pub(crate) services: Vec<Arc<RefCell<Service>>>,
     pub(crate) identifier: u16,
     pub(crate) interface: Option<u8>,
 }
@@ -22,9 +22,29 @@ impl Profile {
         }
     }
 
-    pub fn add_service<S: Borrow<Service>>(mut self, service: S) -> Self {
-        self.services.push(service.borrow().to_owned());
+    pub fn add_service<S: Into<Arc<RefCell<Service>>>>(mut self, service: S) -> Self {
+        self.services.push(service.into());
         self
+    }
+
+    pub(crate) fn get_service(&self, handle: u16) -> Option<Arc<RefCell<Service>>> {
+        for service in &self.services {
+            if service.borrow().handle == Some(handle) {
+                return Some(service.clone());
+            }
+        }
+
+        None
+    }
+
+    pub(crate) fn get_service_by_id(&self, id: esp_gatt_id_t) -> Option<Arc<RefCell<Service>>> {
+        for service in &self.services {
+            if service.borrow().uuid == id.into() {
+                return Some(service.clone());
+            }
+        }
+
+        None
     }
 
     pub(crate) fn register_self(&self) {
@@ -35,7 +55,7 @@ impl Profile {
     pub(crate) fn register_services(&mut self) {
         debug!("Registering {}'s services.", &self);
         self.services.iter_mut().for_each(|service| {
-            service.register_self(self.interface.unwrap());
+            service.borrow_mut().register_self(self.interface.unwrap());
         });
     }
 }

@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use crate::{
     leaky_box_raw,
     utilities::{AttributeControl, AttributePermissions, BleUuid},

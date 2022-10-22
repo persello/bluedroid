@@ -1,4 +1,4 @@
-use std::ffi::c_char;
+use std::{ffi::c_char};
 
 use crate::{
     gatt_server::GattServer,
@@ -20,6 +20,8 @@ use esp_idf_sys::{
 use log::{debug, info, warn};
 
 use crate::gatt_server::profile::Profile;
+
+use super::{characteristic, descriptor, Descriptor};
 
 impl GattServer {
     /// The main GATT server event loop.
@@ -71,11 +73,11 @@ impl GattServer {
 
                     let profile = self
                         .profiles
-                        .iter_mut()
-                        .find(|p| p.identifier == param.app_id)
-                        .expect("No profile found with received identifier.");
+                        .iter()
+                        .find(|profile| (*profile).borrow().identifier == param.app_id)
+                        .expect("No profile found with received application identifier.");
 
-                    profile.interface = Some(gatts_if);
+                    profile.borrow_mut().interface = Some(gatts_if);
 
                     if !self.advertisement_configured {
                         unsafe {
@@ -108,67 +110,54 @@ impl GattServer {
             esp_gatts_cb_event_t_ESP_GATTS_SET_ATTR_VAL_EVT => {
                 let param = unsafe { (*param).set_attr_val };
 
-                if let Some(service) = self
-                    .profiles
-                    .iter_mut()
-                    .find(|p| p.interface == Some(gatts_if))
-                    .and_then(|p| {
-                        p.services
-                            .iter_mut()
-                            .find(|s| s.handle == Some(param.srvc_handle))
-                    })
-                {
-                    if let Some(characteristic) =
-                        service.characteristics.iter_mut().find(|characteristic| {
-                            characteristic.attribute_handle == Some(param.attr_handle)
-                        })
-                    {
+                if let Some(profile) = self.get_profile(gatts_if) &&
+                   let Some(service) = profile.borrow().get_service(param.srvc_handle) &&
+                   let Some(characteristic) = service.borrow().get_characteristic(param.attr_handle) {
                         debug!(
                             "Received set attribute value event for characteristic {}.",
-                            characteristic
+                            characteristic.borrow()
                         );
 
-                        if characteristic.properties.indicate {
+                        if characteristic.borrow().properties.indicate {
                             for connection in self.active_connections.clone() {
                                 unsafe {
                                     esp_nofail!(esp_ble_gatts_send_indicate(
                                         gatts_if,
                                         connection.id(),
                                         param.attr_handle,
-                                        characteristic.internal_value.len() as u16,
-                                        characteristic.internal_value.as_mut_slice().as_mut_ptr(),
+                                        characteristic.borrow().internal_value.len() as u16,
+                                        characteristic.borrow_mut().internal_value.as_mut_slice().as_mut_ptr(),
                                         false
                                     ));
                                 }
                             }
-                        } else if characteristic.properties.notify {
+                        } else if characteristic.borrow().properties.notify {
                             for connection in self.active_connections.clone() {
                                 unsafe {
                                     esp_nofail!(esp_ble_gatts_send_indicate(
                                         gatts_if,
                                         connection.id(),
                                         param.attr_handle,
-                                        characteristic.internal_value.len() as u16,
-                                        characteristic.internal_value.as_mut_slice().as_mut_ptr(),
+                                        characteristic.borrow().internal_value.len() as u16,
+                                        characteristic.borrow_mut().internal_value.as_mut_slice().as_mut_ptr(),
                                         true
                                     ));
                                 }
                             }
                         }
                     } else {
-                        warn!("Cannot find characteristic described by handle received in set attribute value event.");
+                        warn!("Cannot find characteristic described by service handle {} and attribute handle {} received in set attribute value event.", param.srvc_handle, param.attr_handle);
                     }
-                } else {
-                    warn!("Cannot find service described by handle received in set attribute value event.");
-                }
             }
             _ => {}
         }
 
-        self.profiles.iter_mut().for_each(|profile| {
-            if profile.interface == Some(gatts_if) {
-                debug!("Handling event {} on profile {}.", event, profile);
-                profile.gatts_event_handler(event, gatts_if, param)
+        self.profiles.iter().for_each(|profile| {
+            if profile.borrow().interface == Some(gatts_if) {
+                debug!("Handling event {} on profile {}.", event, profile.borrow());
+                profile
+                    .borrow_mut()
+                    .gatts_event_handler(event, gatts_if, param)
             }
         });
     }
@@ -202,116 +191,96 @@ impl Profile {
             esp_gatts_cb_event_t_ESP_GATTS_CREATE_EVT => {
                 let param = unsafe { (*param).create };
 
-                let service = self
-                    .services
-                    .iter_mut()
-                    .find(|service| service.handle == Some(param.service_handle))
-                    .expect("Cannot find service described by received handle.");
+                if let Some(service) = self.get_service_by_id(param.service_id.id) {
+                    service.borrow_mut().handle = Some(param.service_handle);
 
-                service.handle = Some(param.service_handle);
+                    if param.status != esp_gatt_status_t_ESP_GATT_OK {
+                        warn!("GATT service registration failed.");
+                    } else {
+                        info!(
+                            "GATT service {} registered on handle 0x{:04x}.",
+                            service.borrow(),
+                            service.borrow().handle.unwrap()
+                        );
 
-                if param.status != esp_gatt_status_t_ESP_GATT_OK {
-                    warn!("GATT service registration failed.");
-                } else {
-                    info!(
-                        "GATT service {} registered on handle 0x{:04x}.",
-                        service,
-                        service.handle.unwrap()
-                    );
+                        unsafe {
+                            esp_nofail!(esp_ble_gatts_start_service(
+                                service.borrow().handle.unwrap()
+                            ));
+                        }
 
-                    unsafe {
-                        esp_nofail!(esp_ble_gatts_start_service(service.handle.unwrap()));
+                        service.borrow_mut().register_characteristics();
                     }
-
-                    service.register_characteristics();
+                } else {
+                    warn!("Cannot find service with service identifier {} received in service creation event.", BleUuid::from(param.service_id.id));
                 }
             }
             esp_gatts_cb_event_t_ESP_GATTS_START_EVT => {
                 let param = unsafe { (*param).start };
 
-                let service = self
-                    .services
-                    .iter()
-                    .find(|service| service.handle == Some(param.service_handle))
-                    .expect("Cannot find service described by received handle.");
-
-                if param.status != esp_gatt_status_t_ESP_GATT_OK {
-                    warn!("GATT service {} failed to start.", service);
+                if let Some(service) = self.get_service(param.service_handle) {
+                    if param.status != esp_gatt_status_t_ESP_GATT_OK {
+                        warn!("GATT service {} failed to start.", service.borrow());
+                    } else {
+                        debug!("GATT service {} started.", service.borrow());
+                    }
                 } else {
-                    debug!("GATT service {} started.", service);
+                    warn!("Cannot find service described by handle 0x{:04x} received in service start event.", param.service_handle);
                 }
             }
             esp_gatts_cb_event_t_ESP_GATTS_ADD_CHAR_EVT => {
                 let param = unsafe { (*param).add_char };
 
-                if let Some(service) = self
-                    .services
-                    .iter_mut()
-                    .find(|service| service.handle == Some(param.service_handle))
-                {
-                    let characteristic = service
-                        .characteristics
-                        .iter_mut()
-                        .find(|characteristic| {
-                            characteristic.uuid == BleUuid::from(param.char_uuid)
-                        })
-                        .expect("Cannot find characteristic described by received UUID.");
-
-                    if param.status != esp_gatt_status_t_ESP_GATT_OK {
-                        warn!("GATT characteristic registration failed.");
-                    } else {
-                        info!(
-                            "GATT characteristic {} registered at attribute handle 0x{:04x}.",
-                            characteristic, param.attr_handle
-                        );
-                        characteristic.attribute_handle = Some(param.attr_handle);
-                        characteristic.register_descriptors();
-                    }
+                if let Some(service) = self.get_service(param.service_handle) &&
+                   let Some(characteristic) = service.borrow().get_characteristic_by_id(param.char_uuid) {
+                        if param.status != esp_gatt_status_t_ESP_GATT_OK {
+                            warn!("GATT characteristic registration failed.");
+                        } else {
+                            info!(
+                                "GATT characteristic {} registered at attribute handle 0x{:04x}.",
+                                characteristic.borrow(),
+                                param.attr_handle
+                            );
+                            characteristic.borrow_mut().attribute_handle = Some(param.attr_handle);
+                            characteristic.borrow_mut().register_descriptors();
+                        }
                 } else {
-                    warn!("Cannot find service described by handle received in characteristic creation event.");
+                    warn!("Cannot find characteristic described by service handle 0x{:04x} and characteristic identifier {} received in characteristic creation event.", param.service_handle, BleUuid::from(param.char_uuid));
                 }
             }
             esp_gatts_cb_event_t_ESP_GATTS_ADD_CHAR_DESCR_EVT => {
                 let param = unsafe { (*param).add_char_descr };
 
-                if let Some(service) = self
-                    .services
-                    .iter_mut()
-                    .find(|service| service.handle == Some(param.service_handle))
+                if let Some(service) = self.get_service(param.service_handle) &&
+                   let Some(descriptor) = service.borrow().get_descriptor_by_id(param.descr_uuid)
                 {
-                    let descriptor = service
-                        .characteristics
-                        .iter_mut()
-                        .flat_map(|characteristic| characteristic.descriptors.iter_mut())
-                        .find(|descriptor| descriptor.uuid == BleUuid::from(param.descr_uuid))
-                        .expect("Cannot find descriptor described by received UUID.");
-
                     if param.status != esp_gatt_status_t_ESP_GATT_OK {
                         warn!("GATT descriptor registration failed.");
                     } else {
                         info!(
                             "GATT descriptor {} registered at attribute handle 0x{:04x}.",
-                            descriptor, param.attr_handle
+                            descriptor.borrow(),
+                            param.attr_handle
                         );
-                        descriptor.attribute_handle = Some(param.attr_handle);
+                        descriptor.borrow_mut().attribute_handle = Some(param.attr_handle);
                     }
                 } else {
-                    warn!("Cannot find service described by handle received in descriptor creation event.");
+                    warn!("Cannot find service described by identifier {} received in descriptor creation event.", BleUuid::from(param.descr_uuid));
                 }
             }
             esp_gatts_cb_event_t_ESP_GATTS_WRITE_EVT => {
                 let param = unsafe { (*param).write };
 
-                for service in self.services.iter_mut() {
-                    for characteristic in service.characteristics.iter_mut() {
-                        if characteristic.attribute_handle == Some(param.handle) {
+                for service in self.services.iter() {
+                    for characteristic in service.borrow().characteristics.iter() {
+                        if characteristic.borrow().attribute_handle == Some(param.handle) {
                             debug!(
                                 "Received write event for characteristic {}.",
-                                characteristic
+                                characteristic.borrow()
                             );
 
                             // If the characteristic has a write handler, call it.
-                            if let Some(write_callback) = characteristic.write_callback {
+                            if let Some(write_callback) = characteristic.borrow().write_callback {
                                 let value = unsafe {
                                     std::slice::from_raw_parts(param.value, param.len as usize)
                                 }
@@ -320,7 +289,7 @@ impl Profile {
                                 write_callback(value);
 
                                 // Send response if needed.
-                                if param.need_rsp && let AttributeControl::ResponseByApp(read_callback) = characteristic.control {
+                                if param.need_rsp && let AttributeControl::ResponseByApp(read_callback) = characteristic.borrow().control {
                                     // Get value.
                                     let value = read_callback();
 
@@ -355,14 +324,17 @@ impl Profile {
             esp_gatts_cb_event_t_ESP_GATTS_READ_EVT => {
                 let param = unsafe { (*param).read };
 
-                for service in self.services.iter_mut() {
-                    for characteristic in service.characteristics.iter_mut() {
-                        if characteristic.attribute_handle == Some(param.handle) {
-                            debug!("Received read event for characteristic {}.", characteristic);
+                for service in self.services.iter() {
+                    for characteristic in service.borrow().characteristics.iter() {
+                        if characteristic.borrow().attribute_handle == Some(param.handle) {
+                            debug!(
+                                "Received read event for characteristic {}.",
+                                characteristic.borrow()
+                            );
 
                             // If the characteristic has a read handler, call it.
                             if let AttributeControl::ResponseByApp(callback) =
-                                characteristic.control
+                                characteristic.borrow().control
                             {
                                 let value = callback();
 
@@ -391,9 +363,12 @@ impl Profile {
                                 return;
                             }
                         } else {
-                            for descriptor in characteristic.descriptors.iter_mut() {
-                                if descriptor.attribute_handle == Some(param.handle) {
-                                    debug!("Received read event for descriptor {}.", descriptor);
+                            for descriptor in characteristic.borrow().descriptors.iter() {
+                                if descriptor.borrow().attribute_handle == Some(param.handle) {
+                                    debug!(
+                                        "Received read event for descriptor {}.",
+                                        descriptor.borrow()
+                                    );
                                 }
                             }
                         }

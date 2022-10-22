@@ -4,11 +4,10 @@ use crate::{
     utilities::{AttributeControl, AttributePermissions, BleUuid, CharacteristicProperties},
 };
 use esp_idf_sys::{
-    esp_attr_value_t, esp_ble_gatts_add_char,
-    esp_ble_gatts_set_attr_value, esp_nofail,
+    esp_attr_value_t, esp_ble_gatts_add_char, esp_ble_gatts_set_attr_value, esp_nofail,
 };
 use log::{debug, warn};
-use std::{borrow::Borrow, fmt::Formatter};
+use std::{cell::RefCell, fmt::Formatter, sync::Arc};
 
 #[derive(Debug, Clone)]
 pub struct Characteristic {
@@ -16,7 +15,7 @@ pub struct Characteristic {
     pub(crate) uuid: BleUuid,
     pub(crate) internal_value: Vec<u8>,
     pub(crate) write_callback: Option<fn(Vec<u8>)>,
-    pub(crate) descriptors: Vec<Descriptor>,
+    pub(crate) descriptors: Vec<Arc<RefCell<Descriptor>>>,
     pub(crate) attribute_handle: Option<u16>,
     service_handle: Option<u16>,
     permissions: AttributePermissions,
@@ -31,8 +30,8 @@ impl Characteristic {
         uuid: BleUuid,
         permissions: AttributePermissions,
         properties: CharacteristicProperties,
-    ) -> Characteristic {
-        Characteristic {
+    ) -> Self {
+        Self {
             name: Some(String::from(name)),
             uuid,
             internal_value: vec![0],
@@ -47,9 +46,21 @@ impl Characteristic {
     }
 
     /// Adds a [`Descriptor`] to the [`Characteristic`].
-    pub fn add_descriptor<D: Borrow<Descriptor>>(&mut self, descriptor: D) -> &mut Self {
-        self.descriptors.push(descriptor.borrow().to_owned());
+    pub fn add_descriptor<D: Into<Arc<RefCell<Descriptor>>>>(
+        &mut self,
+        descriptor: D,
+    ) -> &mut Self {
+        self.descriptors.push(descriptor.into());
         self
+    }
+
+    pub(crate) fn get_descriptor(&self, handle: u16) -> Option<Arc<RefCell<Descriptor>>> {
+        for descriptor in &self.descriptors {
+            if descriptor.borrow().attribute_handle == Some(handle) {
+                return Some(descriptor.clone());
+            }
+        }
+        None
     }
 
     /// Registers the [`Characteristic`] at the given service handle.
@@ -94,13 +105,13 @@ impl Characteristic {
     /// This is simply done by registering the characteristic and then registering its descriptors.
     pub(crate) fn register_descriptors(&mut self) {
         debug!("Registering {}'s descriptors.", &self);
-        self.descriptors
-            .iter_mut()
-            .for_each(|descriptor: &mut Descriptor| {
-                descriptor.register_self(self.service_handle.expect(
+        self.descriptors.iter_mut().for_each(|descriptor| {
+            descriptor
+                .borrow_mut()
+                .register_self(self.service_handle.expect(
                     "Cannot register a descriptor to a characteristic without a service handle.",
                 ));
-            });
+        });
     }
 
     pub fn on_read(&mut self, response_type: AttributeControl) -> &mut Self {
@@ -153,9 +164,9 @@ impl Characteristic {
 
     pub fn show_name_as_descriptor(&mut self) -> &mut Self {
         if let Some(name) = self.name.clone() {
-            self.add_descriptor(Descriptor::user_description(name));
+            self.add_descriptor(Arc::new(RefCell::new(Descriptor::user_description(name))));
         }
-        
+
         if let BleUuid::Uuid16(_) = self.uuid {
             warn!("You're specifying a user description for a standard characteristic. This might be useless.");
         }

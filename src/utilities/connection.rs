@@ -1,4 +1,7 @@
-use esp_idf_sys::{esp_ble_gatts_cb_param_t_gatts_connect_evt_param, esp_ble_gatts_cb_param_t_gatts_disconnect_evt_param};
+use esp_idf_sys::{
+    esp_ble_gatts_cb_param_t_gatts_connect_evt_param,
+    esp_ble_gatts_cb_param_t_gatts_disconnect_evt_param,
+};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Connection {

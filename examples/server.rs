@@ -1,3 +1,6 @@
+use std::cell::RefCell;
+use std::sync::Arc;
+
 use bluedroid::gatt_server::{Characteristic, GLOBAL_GATT_SERVER};
 use bluedroid::utilities::AttributeControl;
 use bluedroid::{
@@ -21,93 +24,119 @@ fn main() {
 
     info!("Logger initialised.");
 
-    let main_profile = Profile::new("Main Profile", 0xAA).add_service(
-        Service::new("Device Information", BleUuid::from_uuid16(0x180A), true)
-            .add_characteristic(
-                Characteristic::new(
-                    "Manufacturer Name",
-                    BleUuid::from_uuid16(0x2A29),
-                    AttributePermissions::read(),
-                    CharacteristicProperties::new().read(),
-                )
-                .on_read(AttributeControl::AutomaticResponse(
-                    "ESP32".as_bytes().to_vec(),
-                )),
-            )
-            .add_characteristic(
-                Characteristic::new(
-                    "Model Number",
-                    BleUuid::from_uuid16(0x2A24),
-                    AttributePermissions::read(),
-                    CharacteristicProperties::new().read(),
-                )
-                .on_read(AttributeControl::AutomaticResponse(
-                    "ESP32".as_bytes().to_vec(),
-                )),
-            )
-            .add_characteristic(Characteristic::new(
-                "Serial Number",
-                BleUuid::from_uuid16(0x2A25),
-                AttributePermissions::read(),
-                CharacteristicProperties::new().read(),
-            )),
-    );
+    let manufacturer_name_characteristic = Arc::new(RefCell::new(
+        Characteristic::new(
+            "Manufacturer Name",
+            BleUuid::from_uuid16(0x2A29),
+            AttributePermissions::read(),
+            CharacteristicProperties::new().read(),
+        )
+        .on_read(AttributeControl::AutomaticResponse(
+            "ESP32".as_bytes().to_vec(),
+        ))
+        .to_owned(),
+    ));
 
-    let heart_rate_characteristic = Characteristic::new(
-        "Heart Rate Measurement",
-        BleUuid::from_uuid16(0x2A37),
+    let model_number_characteristic = Arc::new(RefCell::new(
+        Characteristic::new(
+            "Model Number",
+            BleUuid::from_uuid16(0x2A24),
+            AttributePermissions::read(),
+            CharacteristicProperties::new().read(),
+        )
+        .on_read(AttributeControl::AutomaticResponse(
+            "ESP32".as_bytes().to_vec(),
+        ))
+        .to_owned(),
+    ));
+
+    let serial_number_characteristic = Arc::new(RefCell::new(Characteristic::new(
+        "Serial Number",
+        BleUuid::from_uuid16(0x2A25),
         AttributePermissions::read(),
         CharacteristicProperties::new().read(),
-    )
-    .on_read(AttributeControl::ResponseByApp(|| {
-        info!("Heart Rate Measurement callback called.");
-        let mut counter = COUNTER.lock().unwrap();
-        *counter += 1;
-        format!("Heart rate, response #{}!", counter)
-            .as_bytes()
-            .to_vec()
-    }))
-    .show_name_as_descriptor()
-    .to_owned();
+    )));
 
-    let secondary_profile = Profile::new("Secondary Profile", 0xBB).add_service(
+    let device_information_service = Arc::new(RefCell::new(
+        Service::new("Device Information", BleUuid::from_uuid16(0x180A), true)
+            .add_characteristic(manufacturer_name_characteristic)
+            .add_characteristic(model_number_characteristic)
+            .add_characteristic(serial_number_characteristic)
+            .to_owned(),
+    ));
+
+    let main_profile = Profile::new("Main Profile", 0xAA).add_service(device_information_service);
+
+    let heart_rate_characteristic = Arc::new(RefCell::new(
+        Characteristic::new(
+            "Heart Rate Measurement",
+            BleUuid::from_uuid16(0x2A37),
+            AttributePermissions::read(),
+            CharacteristicProperties::new().read(),
+        )
+        .on_read(AttributeControl::ResponseByApp(|| {
+            info!("Heart Rate Measurement callback called.");
+            let mut counter = COUNTER.lock().unwrap();
+            *counter += 1;
+            format!("Heart rate, response #{}!", counter)
+                .as_bytes()
+                .to_vec()
+        }))
+        .show_name_as_descriptor()
+        .to_owned(),
+    ));
+
+    let heart_rate_service = Arc::new(RefCell::new(
         Service::new("Heart Rate", BleUuid::from_uuid16(0x180D), true)
-            .add_characteristic(heart_rate_characteristic),
-    );
+            .add_characteristic(heart_rate_characteristic.clone())
+            .to_owned(),
+    ));
 
-    let custom_profile = Profile::new("Custom Profile", 0xCC).add_service(
+    let secondary_profile = Profile::new("Secondary Profile", 0xBB).add_service(heart_rate_service);
+
+    let custom_characteristic = Arc::new(RefCell::new(
+        Characteristic::new(
+            "Custom Characteristic",
+            BleUuid::from_uuid128_string("FBFBFBFB-FBFB-FBFB-FBFB-FBFBFBFBFBFB"),
+            AttributePermissions::read_write(),
+            CharacteristicProperties::new()
+                .read()
+                .write_without_response(),
+        )
+        .on_read(AttributeControl::ResponseByApp(|| {
+            info!("Custom Characteristic read callback called.");
+            let writable = WRITABLE.lock().unwrap();
+            format!("Custom Characteristic read, value is {}!", writable)
+                .as_bytes()
+                .to_vec()
+        }))
+        .on_write(|data| {
+            info!("Custom Characteristic write callback called.");
+            let mut writable = WRITABLE.lock().unwrap();
+            *writable = data[0];
+            info!("Custom Characteristic write, value is now {}!", writable);
+        })
+        .show_name_as_descriptor()
+        .to_owned(),
+    ));
+
+    let custom_service = Arc::new(RefCell::new(
         Service::new(
             "Custom Service",
             BleUuid::from_uuid128_string("FAFAFAFA-FAFA-FAFA-FAFA-FAFAFAFAFAFA"), // FAR BETTER, RUN RUN RUN RUN RUN RUN RUN AWAY...
             true,
         )
-        .add_characteristic(
-            Characteristic::new(
-                "Custom Characteristic",
-                BleUuid::from_uuid128_string("FBFBFBFB-FBFB-FBFB-FBFB-FBFBFBFBFBFB"),
-                AttributePermissions::read_write(),
-                CharacteristicProperties::new()
-                    .read()
-                    .write_without_response(),
-            )
-            .on_read(AttributeControl::ResponseByApp(|| {
-                info!("Custom Characteristic read callback called.");
-                let writable = WRITABLE.lock().unwrap();
-                format!("Custom Characteristic read, value is {}!", writable)
-                    .as_bytes()
-                    .to_vec()
-            }))
-            .on_write(|data| {
-                info!("Custom Characteristic write callback called.");
-                let mut writable = WRITABLE.lock().unwrap();
-                *writable = data[0];
-                info!("Custom Characteristic write, value is now {}!", writable);
-            })
-            .show_name_as_descriptor(),
-        ),
-    );
+        .add_characteristic(custom_characteristic)
+        .to_owned(),
+    ));
 
-    let profiles = [main_profile, secondary_profile, custom_profile];
+    let custom_profile = Profile::new("Custom Profile", 0xCC).add_service(custom_service);
+
+    let profiles = [
+        Arc::new(RefCell::new(main_profile)),
+        Arc::new(RefCell::new(secondary_profile)),
+        Arc::new(RefCell::new(custom_profile)),
+    ];
 
     GLOBAL_GATT_SERVER
         .lock()
@@ -124,12 +153,14 @@ fn main() {
         ))
         .start();
 
-    // let mut delay = esp_idf_hal::delay::Ets;
-    // let mut val: u32 = 0;
-    
-    // loop {
-    //     delay.delay_ms(1000);
-    //     heart_rate_characteristic.set_value(val.to_le_bytes());
-    //     val += 1;
-    // }
+    let mut delay = esp_idf_hal::delay::FreeRtos;
+    let mut val: u32 = 0;
+
+    loop {
+        delay.delay_ms(1000).unwrap();
+        heart_rate_characteristic
+            .borrow_mut()
+            .set_value(val.to_le_bytes());
+        val += 1;
+    }
 }
