@@ -30,7 +30,7 @@ fn main() {
                     CharacteristicProperties::new().read(),
                 )
                 .on_read(AttributeControl::AutomaticResponse(
-                    "pulse.loop".as_bytes().to_vec(),
+                    "ESP32".as_bytes().to_vec(),
                 )),
             )
             .add_characteristic(
@@ -41,7 +41,7 @@ fn main() {
                     CharacteristicProperties::new().read(),
                 )
                 .on_read(AttributeControl::AutomaticResponse(
-                    "pulse.loop".as_bytes().to_vec(),
+                    "ESP32".as_bytes().to_vec(),
                 )),
             )
             .add_characteristic(
