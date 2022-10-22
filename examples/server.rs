@@ -1,4 +1,4 @@
-use bluedroid::gatt_server::{Characteristic, Descriptor, GLOBAL_GATT_SERVER};
+use bluedroid::gatt_server::{Characteristic, GLOBAL_GATT_SERVER};
 use bluedroid::utilities::AttributeControl;
 use bluedroid::{
     gatt_server::{Profile, Service},
@@ -70,14 +70,7 @@ fn main() {
                     .as_bytes()
                     .to_vec()
             }))
-            .add_descriptor(
-                Descriptor::new(
-                    "Descriptor",
-                    BleUuid::from_uuid16(0x2901),
-                    AttributePermissions::read(),
-                )
-                .set_value("Heart Rate Measurement Descriptor".as_bytes().to_vec()),
-            ),
+            .show_name_as_descriptor(),
         ),
     );
 
@@ -107,9 +100,7 @@ fn main() {
                 *writable = data[0];
                 info!("Custom Characteristic write, value is now {}!", writable);
             })
-            .add_descriptor(Descriptor::user_description(
-                "This is a custom characteristic."
-            )),
+            .show_name_as_descriptor(),
         ),
     );
 

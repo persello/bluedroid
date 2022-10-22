@@ -29,7 +29,6 @@ impl CharacteristicProperties {
 
     pub fn write_without_response(mut self) -> Self {
         self.write_without_response = true;
-        self.write = true;
         self
     }
 

@@ -19,8 +19,8 @@ This is a Rust wrapper for the Bluedroid Bluetooth stack for ESP32.
       - [x] Static
       - [x] Dynamic
       - [ ] Long
-    - [ ] Write
-      - [ ] With response
+    - [x] Write
+      - [x] With response
       - [x] Without response
       - [ ] Long
     - [ ] Notify

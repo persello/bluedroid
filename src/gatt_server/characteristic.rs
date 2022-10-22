@@ -51,6 +51,14 @@ impl Characteristic {
         self
     }
 
+    pub fn show_name_as_descriptor(&mut self) -> &mut Self {
+        if let Some(name) = self.name.clone() {
+            self.add_descriptor(Descriptor::user_description(name));
+        }
+
+        self
+    }
+
     /// Registers the [`Characteristic`] at the given service handle.
     pub(crate) fn register_self(&mut self, service_handle: u16) {
         debug!(

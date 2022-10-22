@@ -15,7 +15,7 @@ use esp_idf_sys::{
     esp_gatts_cb_event_t_ESP_GATTS_DISCONNECT_EVT, esp_gatts_cb_event_t_ESP_GATTS_MTU_EVT,
     esp_gatts_cb_event_t_ESP_GATTS_READ_EVT, esp_gatts_cb_event_t_ESP_GATTS_REG_EVT,
     esp_gatts_cb_event_t_ESP_GATTS_RESPONSE_EVT, esp_gatts_cb_event_t_ESP_GATTS_START_EVT,
-    esp_nofail, esp_gatts_cb_event_t_ESP_GATTS_WRITE_EVT,
+    esp_gatts_cb_event_t_ESP_GATTS_WRITE_EVT, esp_nofail,
 };
 use log::{debug, info, warn};
 
@@ -229,19 +229,47 @@ impl Profile {
                 for service in self.services.iter_mut() {
                     for characteristic in service.characteristics.iter_mut() {
                         if characteristic.attribute_handle == Some(param.handle) {
-                            debug!("Received write event for characteristic {}.", characteristic);
+                            debug!(
+                                "Received write event for characteristic {}.",
+                                characteristic
+                            );
 
                             // If the characteristic has a write handler, call it.
-                            if let Some(callback) = characteristic.write_callback {
+                            if let Some(write_callback) = characteristic.write_callback {
                                 let value = unsafe {
                                     std::slice::from_raw_parts(param.value, param.len as usize)
-                                }.to_vec();
+                                }
+                                .to_vec();
 
-                                callback(value);
+                                write_callback(value);
+                                
+                                // Send response if needed.
+                                if param.need_rsp && let AttributeControl::ResponseByApp(read_callback) = characteristic.control {
+                                    // Get value.
+                                    let value = read_callback();
+                                    
+                                    // Extend the response to the maximum length.
+                                    let mut response = [0u8; 600];
+                                    response[..value.len()].copy_from_slice(&value);
 
-                                info!("Write event parameters: {:?}", param);
-
-                                // FIXME: Hangs up.
+                                    unsafe {
+                                        esp_nofail!(esp_ble_gatts_send_response(
+                                            gatts_if,
+                                            param.conn_id,
+                                            param.trans_id,
+                                            esp_gatt_status_t_ESP_GATT_OK,
+                                            leaky_box_raw!(esp_gatt_rsp_t {
+                                                attr_value: esp_gatt_value_t {
+                                                    auth_req: 0,
+                                                    handle: param.handle,
+                                                    len: value.len() as u16,
+                                                    offset: 0,
+                                                    value: response,
+                                                },
+                                            })
+                                        ));
+                                    }
+                                }
                                 return;
                             }
                         }
