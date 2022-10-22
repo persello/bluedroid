@@ -7,7 +7,7 @@ use esp_idf_sys::{
     esp_attr_value_t, esp_ble_gatts_add_char, esp_ble_gatts_set_attr_value, esp_nofail,
 };
 use log::{debug, warn};
-use std::{cell::RefCell, fmt::Formatter, sync::{Arc, Mutex}};
+use std::{cell::RefCell, fmt::Formatter, sync::{Arc, RwLock}};
 
 #[derive(Debug, Clone)]
 pub struct Characteristic {
@@ -15,7 +15,7 @@ pub struct Characteristic {
     pub(crate) uuid: BleUuid,
     pub(crate) internal_value: Vec<u8>,
     pub(crate) write_callback: Option<fn(Vec<u8>)>,
-    pub(crate) descriptors: Vec<Arc<Mutex<Descriptor>>>,
+    pub(crate) descriptors: Vec<Arc<RwLock<Descriptor>>>,
     pub(crate) attribute_handle: Option<u16>,
     service_handle: Option<u16>,
     permissions: AttributePermissions,
@@ -46,7 +46,7 @@ impl Characteristic {
     }
 
     /// Adds a [`Descriptor`] to the [`Characteristic`].
-    pub fn add_descriptor<D: Into<Arc<Mutex<Descriptor>>>>(
+    pub fn add_descriptor<D: Into<Arc<RwLock<Descriptor>>>>(
         &mut self,
         descriptor: D,
     ) -> &mut Self {
@@ -54,9 +54,9 @@ impl Characteristic {
         self
     }
 
-    pub(crate) fn get_descriptor(&self, handle: u16) -> Option<Arc<Mutex<Descriptor>>> {
+    pub(crate) fn get_descriptor(&self, handle: u16) -> Option<Arc<RwLock<Descriptor>>> {
         for descriptor in &self.descriptors {
-            if descriptor.lock().unwrap().attribute_handle == Some(handle) {
+            if descriptor.read().unwrap().attribute_handle == Some(handle) {
                 return Some(descriptor.clone());
             }
         }
@@ -107,7 +107,7 @@ impl Characteristic {
         debug!("Registering {}'s descriptors.", &self);
         self.descriptors.iter_mut().for_each(|descriptor| {
             descriptor
-                .lock().unwrap()
+                .write().unwrap()
                 .register_self(self.service_handle.expect(
                     "Cannot register a descriptor to a characteristic without a service handle.",
                 ));
@@ -164,7 +164,7 @@ impl Characteristic {
 
     pub fn show_name_as_descriptor(&mut self) -> &mut Self {
         if let Some(name) = self.name.clone() {
-            self.add_descriptor(Arc::new(Mutex::new(Descriptor::user_description(name))));
+            self.add_descriptor(Arc::new(RwLock::new(Descriptor::user_description(name))));
         }
 
         if let BleUuid::Uuid16(_) = self.uuid {
