@@ -92,7 +92,7 @@ fn main() {
                 "Custom Characteristic",
                 BleUuid::from_uuid128_string("FBFBFBFB-FBFB-FBFB-FBFB-FBFBFBFBFBFB"),
                 AttributePermissions::read_write(),
-                CharacteristicProperties::new().read().write(),
+                CharacteristicProperties::new().read().write_without_response(),
             )
             .on_read(AttributeControl::ResponseByApp(|| {
                 info!("Custom Characteristic read callback called.");

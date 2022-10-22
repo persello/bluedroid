@@ -238,6 +238,10 @@ impl Profile {
                                 }.to_vec();
 
                                 callback(value);
+
+                                info!("Write event parameters: {:?}", param);
+
+                                // FIXME: Hangs up.
                                 return;
                             }
                         }
