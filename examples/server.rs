@@ -1,5 +1,4 @@
-use std::cell::RefCell;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use bluedroid::gatt_server::{Characteristic, GLOBAL_GATT_SERVER};
 use bluedroid::utilities::AttributeControl;
@@ -24,7 +23,7 @@ fn main() {
 
     info!("Logger initialised.");
 
-    let manufacturer_name_characteristic = Arc::new(RefCell::new(
+    let manufacturer_name_characteristic = Arc::new(Mutex::new(
         Characteristic::new(
             "Manufacturer Name",
             BleUuid::from_uuid16(0x2A29),
@@ -37,7 +36,7 @@ fn main() {
         .to_owned(),
     ));
 
-    let model_number_characteristic = Arc::new(RefCell::new(
+    let model_number_characteristic = Arc::new(Mutex::new(
         Characteristic::new(
             "Model Number",
             BleUuid::from_uuid16(0x2A24),
@@ -50,14 +49,14 @@ fn main() {
         .to_owned(),
     ));
 
-    let serial_number_characteristic = Arc::new(RefCell::new(Characteristic::new(
+    let serial_number_characteristic = Arc::new(Mutex::new(Characteristic::new(
         "Serial Number",
         BleUuid::from_uuid16(0x2A25),
         AttributePermissions::read(),
         CharacteristicProperties::new().read(),
     )));
 
-    let device_information_service = Arc::new(RefCell::new(
+    let device_information_service = Arc::new(Mutex::new(
         Service::new("Device Information", BleUuid::from_uuid16(0x180A), true)
             .add_characteristic(manufacturer_name_characteristic)
             .add_characteristic(model_number_characteristic)
@@ -67,7 +66,7 @@ fn main() {
 
     let main_profile = Profile::new("Main Profile", 0xAA).add_service(device_information_service);
 
-    let heart_rate_characteristic = Arc::new(RefCell::new(
+    let heart_rate_characteristic = Arc::new(Mutex::new(
         Characteristic::new(
             "Heart Rate Measurement",
             BleUuid::from_uuid16(0x2A37),
@@ -86,7 +85,7 @@ fn main() {
         .to_owned(),
     ));
 
-    let heart_rate_service = Arc::new(RefCell::new(
+    let heart_rate_service = Arc::new(Mutex::new(
         Service::new("Heart Rate", BleUuid::from_uuid16(0x180D), true)
             .add_characteristic(heart_rate_characteristic.clone())
             .to_owned(),
@@ -94,7 +93,7 @@ fn main() {
 
     let secondary_profile = Profile::new("Secondary Profile", 0xBB).add_service(heart_rate_service);
 
-    let custom_characteristic = Arc::new(RefCell::new(
+    let custom_characteristic = Arc::new(Mutex::new(
         Characteristic::new(
             "Custom Characteristic",
             BleUuid::from_uuid128_string("FBFBFBFB-FBFB-FBFB-FBFB-FBFBFBFBFBFB"),
@@ -120,7 +119,7 @@ fn main() {
         .to_owned(),
     ));
 
-    let custom_service = Arc::new(RefCell::new(
+    let custom_service = Arc::new(Mutex::new(
         Service::new(
             "Custom Service",
             BleUuid::from_uuid128_string("FAFAFAFA-FAFA-FAFA-FAFA-FAFAFAFAFAFA"), // FAR BETTER, RUN RUN RUN RUN RUN RUN RUN AWAY...
@@ -133,9 +132,9 @@ fn main() {
     let custom_profile = Profile::new("Custom Profile", 0xCC).add_service(custom_service);
 
     let profiles = [
-        Arc::new(RefCell::new(main_profile)),
-        Arc::new(RefCell::new(secondary_profile)),
-        Arc::new(RefCell::new(custom_profile)),
+        Arc::new(Mutex::new(main_profile)),
+        Arc::new(Mutex::new(secondary_profile)),
+        Arc::new(Mutex::new(custom_profile)),
     ];
 
     GLOBAL_GATT_SERVER
@@ -159,7 +158,8 @@ fn main() {
     loop {
         delay.delay_ms(1000).unwrap();
         heart_rate_characteristic
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .set_value(val.to_le_bytes());
         val += 1;
     }

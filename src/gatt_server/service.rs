@@ -4,13 +4,13 @@ use crate::{
 };
 use esp_idf_sys::*;
 use log::debug;
-use std::{cell::RefCell, fmt::Formatter, sync::Arc};
+use std::{cell::RefCell, fmt::Formatter, sync::{Arc, Mutex}};
 
 #[derive(Debug, Clone)]
 pub struct Service {
     name: Option<String>,
     pub(crate) uuid: BleUuid,
-    pub(crate) characteristics: Vec<Arc<RefCell<Characteristic>>>,
+    pub(crate) characteristics: Vec<Arc<Mutex<Characteristic>>>,
     primary: bool,
     pub(crate) handle: Option<u16>,
 }
@@ -28,33 +28,33 @@ impl Service {
 
     pub fn add_characteristic(
         &mut self,
-        characteristic: Arc<RefCell<Characteristic>>,
+        characteristic: Arc<Mutex<Characteristic>>,
     ) -> &mut Self {
         self.characteristics.push(characteristic);
         self
     }
 
-    pub(crate) fn get_characteristic(&self, handle: u16) -> Option<Arc<RefCell<Characteristic>>> {
+    pub(crate) fn get_characteristic(&self, handle: u16) -> Option<Arc<Mutex<Characteristic>>> {
         self.characteristics
             .iter()
-            .find(|characteristic| characteristic.borrow().attribute_handle == Some(handle))
+            .find(|characteristic| characteristic.lock().unwrap().attribute_handle == Some(handle))
             .cloned()
     }
 
     pub(crate) fn get_characteristic_by_id(
         &self,
         id: esp_bt_uuid_t,
-    ) -> Option<Arc<RefCell<Characteristic>>> {
+    ) -> Option<Arc<Mutex<Characteristic>>> {
         self.characteristics
             .iter()
-            .find(|characteristic| characteristic.borrow().uuid == id.into())
+            .find(|characteristic| characteristic.lock().unwrap().uuid == id.into())
             .cloned()
     }
 
-    pub(crate) fn get_descriptor(&self, handle: u16) -> Option<Arc<RefCell<Descriptor>>> {
+    pub(crate) fn get_descriptor(&self, handle: u16) -> Option<Arc<Mutex<Descriptor>>> {
         for characteristic in &self.characteristics {
-            for descriptor in characteristic.borrow().clone().descriptors {
-                if descriptor.borrow().attribute_handle == Some(handle) {
+            for descriptor in characteristic.lock().unwrap().clone().descriptors {
+                if descriptor.lock().unwrap().attribute_handle == Some(handle) {
                     return Some(descriptor);
                 }
             }
@@ -63,10 +63,10 @@ impl Service {
         None
     }
 
-    pub(crate) fn get_descriptor_by_id(&self, id: esp_bt_uuid_t) -> Option<Arc<RefCell<Descriptor>>> {
+    pub(crate) fn get_descriptor_by_id(&self, id: esp_bt_uuid_t) -> Option<Arc<Mutex<Descriptor>>> {
         for characteristic in &self.characteristics {
-            for descriptor in characteristic.borrow().clone().descriptors {
-                if descriptor.borrow().uuid == id.into() {
+            for descriptor in characteristic.lock().unwrap().clone().descriptors {
+                if descriptor.lock().unwrap().uuid == id.into() {
                     return Some(descriptor);
                 }
             }
@@ -95,7 +95,7 @@ impl Service {
     pub(crate) fn register_characteristics(&mut self) {
         debug!("Registering {}'s characteristics.", &self);
         self.characteristics.iter().for_each(|characteristic| {
-            characteristic.borrow_mut().register_self(
+            characteristic.lock().unwrap().register_self(
                 self.handle
                     .expect("Cannot register a characteristic to a service without a handle."),
             );

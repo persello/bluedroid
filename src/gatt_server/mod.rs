@@ -102,7 +102,7 @@ lazy_static! {
 }
 
 pub struct GattServer {
-    profiles: Vec<Arc<RefCell<Profile>>>,
+    profiles: Vec<Arc<Mutex<Profile>>>,
     started: bool,
     advertisement_parameters: esp_ble_adv_params_t,
     advertisement_data: esp_ble_adv_data_t,
@@ -126,7 +126,7 @@ impl GattServer {
 
         // Registration of profiles, services, characteristics and descriptors.
         self.profiles.iter().for_each(|profile| {
-            profile.borrow_mut().register_self();
+            profile.lock().unwrap().register_self();
         })
     }
 
@@ -156,7 +156,7 @@ impl GattServer {
         self
     }
 
-    pub fn add_profiles(&mut self, profiles: &[Arc<RefCell<Profile>>]) -> &mut Self {
+    pub fn add_profiles(&mut self, profiles: &[Arc<Mutex<Profile>>]) -> &mut Self {
         self.profiles.append(&mut profiles.to_vec());
         if self.started {
             warn!("In order to register the newly added profiles, you'll need to restart the GATT server.");
@@ -184,10 +184,10 @@ impl GattServer {
         self
     }
 
-    pub(crate) fn get_profile(&self, interface: u8) -> Option<Arc<RefCell<Profile>>> {
+    pub(crate) fn get_profile(&self, interface: u8) -> Option<Arc<Mutex<Profile>>> {
         self.profiles
             .iter()
-            .find(|profile| profile.borrow().interface == Some(interface)).cloned()
+            .find(|profile| profile.lock().unwrap().interface == Some(interface)).cloned()
     }
 
     fn initialise_ble_stack(&mut self) {

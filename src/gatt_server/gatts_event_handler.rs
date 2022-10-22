@@ -74,10 +74,10 @@ impl GattServer {
                     let profile = self
                         .profiles
                         .iter()
-                        .find(|profile| (*profile).borrow().identifier == param.app_id)
+                        .find(|profile| (*profile).lock().unwrap().identifier == param.app_id)
                         .expect("No profile found with received application identifier.");
 
-                    profile.borrow_mut().interface = Some(gatts_if);
+                    profile.lock().unwrap().interface = Some(gatts_if);
 
                     if !self.advertisement_configured {
                         unsafe {
@@ -111,35 +111,35 @@ impl GattServer {
                 let param = unsafe { (*param).set_attr_val };
 
                 if let Some(profile) = self.get_profile(gatts_if) &&
-                   let Some(service) = profile.borrow().get_service(param.srvc_handle) &&
-                   let Some(characteristic) = service.borrow().get_characteristic(param.attr_handle) {
+                   let Some(service) = profile.lock().unwrap().get_service(param.srvc_handle) &&
+                   let Some(characteristic) = service.lock().unwrap().get_characteristic(param.attr_handle) {
                         debug!(
                             "Received set attribute value event for characteristic {}.",
-                            characteristic.borrow()
+                            characteristic.lock().unwrap()
                         );
 
-                        if characteristic.borrow().properties.indicate {
+                        if characteristic.lock().unwrap().properties.indicate {
                             for connection in self.active_connections.clone() {
                                 unsafe {
                                     esp_nofail!(esp_ble_gatts_send_indicate(
                                         gatts_if,
                                         connection.id(),
                                         param.attr_handle,
-                                        characteristic.borrow().internal_value.len() as u16,
-                                        characteristic.borrow_mut().internal_value.as_mut_slice().as_mut_ptr(),
+                                        characteristic.lock().unwrap().internal_value.len() as u16,
+                                        characteristic.lock().unwrap().internal_value.as_mut_slice().as_mut_ptr(),
                                         false
                                     ));
                                 }
                             }
-                        } else if characteristic.borrow().properties.notify {
+                        } else if characteristic.lock().unwrap().properties.notify {
                             for connection in self.active_connections.clone() {
                                 unsafe {
                                     esp_nofail!(esp_ble_gatts_send_indicate(
                                         gatts_if,
                                         connection.id(),
                                         param.attr_handle,
-                                        characteristic.borrow().internal_value.len() as u16,
-                                        characteristic.borrow_mut().internal_value.as_mut_slice().as_mut_ptr(),
+                                        characteristic.lock().unwrap().internal_value.len() as u16,
+                                        characteristic.lock().unwrap().internal_value.as_mut_slice().as_mut_ptr(),
                                         true
                                     ));
                                 }
@@ -153,10 +153,10 @@ impl GattServer {
         }
 
         self.profiles.iter().for_each(|profile| {
-            if profile.borrow().interface == Some(gatts_if) {
-                debug!("Handling event {} on profile {}.", event, profile.borrow());
+            if profile.lock().unwrap().interface == Some(gatts_if) {
+                debug!("Handling event {} on profile {}.", event, profile.lock().unwrap());
                 profile
-                    .borrow_mut()
+                    .lock().unwrap()
                     .gatts_event_handler(event, gatts_if, param)
             }
         });
@@ -192,24 +192,24 @@ impl Profile {
                 let param = unsafe { (*param).create };
 
                 if let Some(service) = self.get_service_by_id(param.service_id.id) {
-                    service.borrow_mut().handle = Some(param.service_handle);
+                    service.lock().unwrap().handle = Some(param.service_handle);
 
                     if param.status != esp_gatt_status_t_ESP_GATT_OK {
                         warn!("GATT service registration failed.");
                     } else {
                         info!(
                             "GATT service {} registered on handle 0x{:04x}.",
-                            service.borrow(),
-                            service.borrow().handle.unwrap()
+                            service.lock().unwrap(),
+                            service.lock().unwrap().handle.unwrap()
                         );
 
                         unsafe {
                             esp_nofail!(esp_ble_gatts_start_service(
-                                service.borrow().handle.unwrap()
+                                service.lock().unwrap().handle.unwrap()
                             ));
                         }
 
-                        service.borrow_mut().register_characteristics();
+                        service.lock().unwrap().register_characteristics();
                     }
                 } else {
                     warn!("Cannot find service with service identifier {} received in service creation event.", BleUuid::from(param.service_id.id));
@@ -220,9 +220,9 @@ impl Profile {
 
                 if let Some(service) = self.get_service(param.service_handle) {
                     if param.status != esp_gatt_status_t_ESP_GATT_OK {
-                        warn!("GATT service {} failed to start.", service.borrow());
+                        warn!("GATT service {} failed to start.", service.lock().unwrap());
                     } else {
-                        debug!("GATT service {} started.", service.borrow());
+                        debug!("GATT service {} started.", service.lock().unwrap());
                     }
                 } else {
                     warn!("Cannot find service described by handle 0x{:04x} received in service start event.", param.service_handle);
@@ -232,17 +232,17 @@ impl Profile {
                 let param = unsafe { (*param).add_char };
 
                 if let Some(service) = self.get_service(param.service_handle) &&
-                   let Some(characteristic) = service.borrow().get_characteristic_by_id(param.char_uuid) {
+                   let Some(characteristic) = service.lock().unwrap().get_characteristic_by_id(param.char_uuid) {
                         if param.status != esp_gatt_status_t_ESP_GATT_OK {
                             warn!("GATT characteristic registration failed.");
                         } else {
                             info!(
                                 "GATT characteristic {} registered at attribute handle 0x{:04x}.",
-                                characteristic.borrow(),
+                                characteristic.lock().unwrap(),
                                 param.attr_handle
                             );
-                            characteristic.borrow_mut().attribute_handle = Some(param.attr_handle);
-                            characteristic.borrow_mut().register_descriptors();
+                            characteristic.lock().unwrap().attribute_handle = Some(param.attr_handle);
+                            characteristic.lock().unwrap().register_descriptors();
                         }
                 } else {
                     warn!("Cannot find characteristic described by service handle 0x{:04x} and characteristic identifier {} received in characteristic creation event.", param.service_handle, BleUuid::from(param.char_uuid));
@@ -252,17 +252,17 @@ impl Profile {
                 let param = unsafe { (*param).add_char_descr };
 
                 if let Some(service) = self.get_service(param.service_handle) &&
-                   let Some(descriptor) = service.borrow().get_descriptor_by_id(param.descr_uuid)
+                   let Some(descriptor) = service.lock().unwrap().get_descriptor_by_id(param.descr_uuid)
                 {
                     if param.status != esp_gatt_status_t_ESP_GATT_OK {
                         warn!("GATT descriptor registration failed.");
                     } else {
                         info!(
                             "GATT descriptor {} registered at attribute handle 0x{:04x}.",
-                            descriptor.borrow(),
+                            descriptor.lock().unwrap(),
                             param.attr_handle
                         );
-                        descriptor.borrow_mut().attribute_handle = Some(param.attr_handle);
+                        descriptor.lock().unwrap().attribute_handle = Some(param.attr_handle);
                     }
                 } else {
                     warn!("Cannot find service described by identifier {} received in descriptor creation event.", BleUuid::from(param.descr_uuid));
@@ -272,15 +272,15 @@ impl Profile {
                 let param = unsafe { (*param).write };
 
                 for service in self.services.iter() {
-                    for characteristic in service.borrow().characteristics.iter() {
-                        if characteristic.borrow().attribute_handle == Some(param.handle) {
+                    for characteristic in service.lock().unwrap().characteristics.iter() {
+                        if characteristic.lock().unwrap().attribute_handle == Some(param.handle) {
                             debug!(
                                 "Received write event for characteristic {}.",
-                                characteristic.borrow()
+                                characteristic.lock().unwrap()
                             );
 
                             // If the characteristic has a write handler, call it.
-                            if let Some(write_callback) = characteristic.borrow().write_callback {
+                            if let Some(write_callback) = characteristic.lock().unwrap().write_callback {
                                 let value = unsafe {
                                     std::slice::from_raw_parts(param.value, param.len as usize)
                                 }
@@ -289,7 +289,7 @@ impl Profile {
                                 write_callback(value);
 
                                 // Send response if needed.
-                                if param.need_rsp && let AttributeControl::ResponseByApp(read_callback) = characteristic.borrow().control {
+                                if param.need_rsp && let AttributeControl::ResponseByApp(read_callback) = characteristic.lock().unwrap().control {
                                     // Get value.
                                     let value = read_callback();
 
@@ -325,16 +325,16 @@ impl Profile {
                 let param = unsafe { (*param).read };
 
                 for service in self.services.iter() {
-                    for characteristic in service.borrow().characteristics.iter() {
-                        if characteristic.borrow().attribute_handle == Some(param.handle) {
+                    for characteristic in service.lock().unwrap().characteristics.iter() {
+                        if characteristic.lock().unwrap().attribute_handle == Some(param.handle) {
                             debug!(
                                 "Received read event for characteristic {}.",
-                                characteristic.borrow()
+                                characteristic.lock().unwrap()
                             );
 
                             // If the characteristic has a read handler, call it.
                             if let AttributeControl::ResponseByApp(callback) =
-                                characteristic.borrow().control
+                                characteristic.lock().unwrap().control
                             {
                                 let value = callback();
 
@@ -363,11 +363,11 @@ impl Profile {
                                 return;
                             }
                         } else {
-                            for descriptor in characteristic.borrow().descriptors.iter() {
-                                if descriptor.borrow().attribute_handle == Some(param.handle) {
+                            for descriptor in characteristic.lock().unwrap().descriptors.iter() {
+                                if descriptor.lock().unwrap().attribute_handle == Some(param.handle) {
                                     debug!(
                                         "Received read event for descriptor {}.",
-                                        descriptor.borrow()
+                                        descriptor.lock().unwrap()
                                     );
                                 }
                             }
