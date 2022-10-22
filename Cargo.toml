@@ -27,7 +27,7 @@ targets = ["riscv32imc-esp-espidf"]
 rustdoc-args = ["--no-deps"]
 
 [dependencies]
-esp-idf-sys = { version = "0.31.7", features = ["native"] }
+esp-idf-sys = { version = "0.31.10", features = ["native"] }
 log = { version = "0.4.17" }
 lazy_static = { version = "1.4.0" }
 
@@ -37,8 +37,10 @@ anyhow = { version = "1.0.58" }
 
 [dev-dependencies]
 anyhow = { version = "1.0.58" }
-esp-idf-sys = { version = "0.31.9", features = ["native", "binstart"] }
+esp-idf-sys = { version = "0.31.10", features = ["native", "binstart"] }
 esp-idf-svc = { version = "=0.42.1" }
+esp-idf-hal = { version = "=0.38.1" }
+embedded-hal = { version = "1.0.0-alpha.8" }
 
 [[example]]
 name = "server"

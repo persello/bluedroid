@@ -4,22 +4,23 @@ use crate::{
     utilities::{AttributeControl, AttributePermissions, BleUuid, CharacteristicProperties},
 };
 use esp_idf_sys::{
-    esp_attr_value_t, esp_ble_gatts_add_char, esp_ble_gatts_set_attr_value, esp_nofail,
+    esp_attr_value_t, esp_ble_gatts_add_char,
+    esp_ble_gatts_set_attr_value, esp_nofail,
 };
-use log::debug;
+use log::{debug, warn};
 use std::{borrow::Borrow, fmt::Formatter};
 
 #[derive(Debug, Clone)]
 pub struct Characteristic {
     name: Option<String>,
     pub(crate) uuid: BleUuid,
-    internal_value: Vec<u8>,
+    pub(crate) internal_value: Vec<u8>,
     pub(crate) write_callback: Option<fn(Vec<u8>)>,
     pub(crate) descriptors: Vec<Descriptor>,
     pub(crate) attribute_handle: Option<u16>,
     service_handle: Option<u16>,
     permissions: AttributePermissions,
-    properties: CharacteristicProperties,
+    pub(crate) properties: CharacteristicProperties,
     pub(crate) control: AttributeControl,
 }
 
@@ -48,14 +49,6 @@ impl Characteristic {
     /// Adds a [`Descriptor`] to the [`Characteristic`].
     pub fn add_descriptor<D: Borrow<Descriptor>>(&mut self, descriptor: D) -> &mut Self {
         self.descriptors.push(descriptor.borrow().to_owned());
-        self
-    }
-
-    pub fn show_name_as_descriptor(&mut self) -> &mut Self {
-        if let Some(name) = self.name.clone() {
-            self.add_descriptor(Descriptor::user_description(name));
-        }
-
         self
     }
 
@@ -111,6 +104,15 @@ impl Characteristic {
     }
 
     pub fn on_read(&mut self, response_type: AttributeControl) -> &mut Self {
+        if !self.properties.read || !self.permissions.read_access {
+            warn!(
+                "Characteristic {} does not have read permissions. Ignoring read callback.",
+                self
+            );
+
+            return self;
+        }
+
         self.control = response_type;
 
         // If the response type is an automatic response, we need to update the value.
@@ -134,7 +136,46 @@ impl Characteristic {
     }
 
     pub fn on_write(&mut self, callback: fn(Vec<u8>)) -> &mut Self {
+        if !((self.properties.write || self.properties.write_without_response)
+            && self.permissions.write_access)
+        {
+            warn!(
+                "Characteristic {} does not have write permissions. Ignoring write callback.",
+                self
+            );
+
+            return self;
+        }
+
         self.write_callback = Some(callback);
+        self
+    }
+
+    pub fn show_name_as_descriptor(&mut self) -> &mut Self {
+        if let Some(name) = self.name.clone() {
+            self.add_descriptor(Descriptor::user_description(name));
+        }
+        
+        if let BleUuid::Uuid16(_) = self.uuid {
+            warn!("You're specifying a user description for a standard characteristic. This might be useless.");
+        }
+
+        self
+    }
+
+    pub fn set_value<T: Into<Vec<u8>>>(&mut self, value: T) -> &mut Self {
+        self.internal_value = value.into();
+
+        if let Some(handle) = self.attribute_handle {
+            unsafe {
+                esp_nofail!(esp_ble_gatts_set_attr_value(
+                    handle,
+                    self.internal_value.len() as u16,
+                    self.internal_value.as_mut_slice().as_mut_ptr()
+                ));
+            }
+        }
+
         self
     }
 }

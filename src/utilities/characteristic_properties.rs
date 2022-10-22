@@ -1,13 +1,14 @@
 use esp_idf_sys::*;
+use log::warn;
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CharacteristicProperties {
     broadcast: bool,
-    read: bool,
-    write_without_response: bool,
-    write: bool,
-    notify: bool,
-    indicate: bool,
+    pub(crate) read: bool,
+    pub(crate) write_without_response: bool,
+    pub(crate) write: bool,
+    pub(crate) notify: bool,
+    pub(crate) indicate: bool,
     authenticated_signed_writes: bool,
     extended_properties: bool,
 }
@@ -38,11 +39,21 @@ impl CharacteristicProperties {
     }
 
     pub fn notify(mut self) -> Self {
+        if self.indicate {
+            warn!("Cannot set notify and indicate at the same time. Ignoring notify.");
+            return self;
+        }
+
         self.notify = true;
         self
     }
 
     pub fn indicate(mut self) -> Self {
+        if self.notify {
+            warn!("Cannot set notify and indicate at the same time. Ignoring indicate.");
+            return self;
+        }
+
         self.indicate = true;
         self
     }

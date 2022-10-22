@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::{collections::HashSet, sync::Mutex};
 
 use esp_idf_sys::{
     esp_ble_addr_type_t_BLE_ADDR_TYPE_RPA_PUBLIC, esp_ble_adv_channel_t_ADV_CHNL_ALL,
@@ -25,7 +25,7 @@ use esp_idf_sys::{
 use lazy_static::lazy_static;
 use log::{info, warn};
 
-use crate::{leaky_box_raw, utilities::Appearance};
+use crate::{leaky_box_raw, utilities::{Appearance, Connection}};
 
 pub use characteristic::Characteristic;
 pub use descriptor::Descriptor;
@@ -90,6 +90,7 @@ lazy_static! {
         },
         advertisement_configured: false,
         device_name: "ESP32".to_string(),
+        active_connections: HashSet::new(),
     }));
 }
 
@@ -101,6 +102,7 @@ pub struct GattServer {
     scan_response_data: esp_ble_adv_data_t,
     device_name: String,
     advertisement_configured: bool,
+    active_connections: HashSet<Connection>,
 }
 
 unsafe impl Send for GattServer {}
@@ -140,7 +142,7 @@ impl GattServer {
             warn!("Appearance already set. Please set the appearance before starting the server.");
             return self;
         }
-        
+
         self.advertisement_data.appearance = appearance.into();
         self.scan_response_data.appearance = appearance.into();
 

@@ -4,6 +4,7 @@ use bluedroid::{
     gatt_server::{Profile, Service},
     utilities::{AttributePermissions, BleUuid, CharacteristicProperties},
 };
+use embedded_hal::delay::blocking::DelayUs;
 use lazy_static::lazy_static;
 use log::info;
 
@@ -44,34 +45,34 @@ fn main() {
                     "ESP32".as_bytes().to_vec(),
                 )),
             )
-            .add_characteristic(
-                Characteristic::new(
-                    "Serial Number",
-                    BleUuid::from_uuid16(0x2A25),
-                    AttributePermissions::read(),
-                    CharacteristicProperties::new().read(),
-                ),
-            ),
-    );
-
-    let secondary_profile = Profile::new("Secondary Profile", 0xBB).add_service(
-        Service::new("Heart Rate", BleUuid::from_uuid16(0x180D), true).add_characteristic(
-            Characteristic::new(
-                "Heart Rate Measurement",
-                BleUuid::from_uuid16(0x2A37),
+            .add_characteristic(Characteristic::new(
+                "Serial Number",
+                BleUuid::from_uuid16(0x2A25),
                 AttributePermissions::read(),
                 CharacteristicProperties::new().read(),
-            )
-            .on_read(AttributeControl::ResponseByApp(|| {
-                info!("Heart Rate Measurement callback called.");
-                let mut counter = COUNTER.lock().unwrap();
-                *counter += 1;
-                format!("Heart rate, response #{}!", counter)
-                    .as_bytes()
-                    .to_vec()
-            }))
-            .show_name_as_descriptor(),
-        ),
+            )),
+    );
+
+    let heart_rate_characteristic = Characteristic::new(
+        "Heart Rate Measurement",
+        BleUuid::from_uuid16(0x2A37),
+        AttributePermissions::read(),
+        CharacteristicProperties::new().read(),
+    )
+    .on_read(AttributeControl::ResponseByApp(|| {
+        info!("Heart Rate Measurement callback called.");
+        let mut counter = COUNTER.lock().unwrap();
+        *counter += 1;
+        format!("Heart rate, response #{}!", counter)
+            .as_bytes()
+            .to_vec()
+    }))
+    .show_name_as_descriptor()
+    .to_owned();
+
+    let secondary_profile = Profile::new("Secondary Profile", 0xBB).add_service(
+        Service::new("Heart Rate", BleUuid::from_uuid16(0x180D), true)
+            .add_characteristic(heart_rate_characteristic),
     );
 
     let custom_profile = Profile::new("Custom Profile", 0xCC).add_service(
@@ -85,7 +86,9 @@ fn main() {
                 "Custom Characteristic",
                 BleUuid::from_uuid128_string("FBFBFBFB-FBFB-FBFB-FBFB-FBFBFBFBFBFB"),
                 AttributePermissions::read_write(),
-                CharacteristicProperties::new().read().write_without_response(),
+                CharacteristicProperties::new()
+                    .read()
+                    .write_without_response(),
             )
             .on_read(AttributeControl::ResponseByApp(|| {
                 info!("Custom Characteristic read callback called.");
@@ -120,4 +123,13 @@ fn main() {
             true,
         ))
         .start();
+
+    // let mut delay = esp_idf_hal::delay::Ets;
+    // let mut val: u32 = 0;
+    
+    // loop {
+    //     delay.delay_ms(1000);
+    //     heart_rate_characteristic.set_value(val.to_le_bytes());
+    //     val += 1;
+    // }
 }
