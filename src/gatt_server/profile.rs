@@ -1,6 +1,8 @@
+use std::borrow::Borrow;
+
 use crate::gatt_server::service::Service;
 use esp_idf_sys::*;
-use log::info;
+use log::debug;
 
 #[derive(Debug, Clone)]
 pub struct Profile {
@@ -20,18 +22,18 @@ impl Profile {
         }
     }
 
-    pub fn add_service(mut self, service: &Service) -> Self {
-        self.services.push(service.clone());
+    pub fn add_service<S: Borrow<Service>>(mut self, service: S) -> Self {
+        self.services.push(service.borrow().to_owned());
         self
     }
 
     pub(crate) fn register_self(&self) {
-        info!("Registering {}.", self);
+        debug!("Registering {}.", self);
         unsafe { esp_nofail!(esp_ble_gatts_app_register(self.identifier)) };
     }
 
     pub(crate) fn register_services(&mut self) {
-        info!("Registering {}'s services.", &self);
+        debug!("Registering {}'s services.", &self);
         self.services.iter_mut().for_each(|service| {
             service.register_self(self.interface.unwrap());
         });
@@ -40,20 +42,13 @@ impl Profile {
 
 impl std::fmt::Display for Profile {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let interface_string = if let Some(interface) = self.interface {
-            format!("{}", interface)
-        } else {
-            String::from("None")
-        };
-
         write!(
             f,
-            "{} (0x{:04x}, interface: {})",
+            "{} (0x{:04x})",
             self.name
                 .clone()
                 .unwrap_or_else(|| "Unnamed profile".to_string()),
             self.identifier,
-            interface_string
         )
     }
 }

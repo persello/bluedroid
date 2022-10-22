@@ -7,7 +7,7 @@ use esp_idf_sys::{
     esp_gap_ble_cb_event_t_ESP_GAP_BLE_UPDATE_CONN_PARAMS_EVT, esp_nofail,
 };
 
-use log::{info, warn};
+use log::{debug, info, warn};
 
 use super::GattServer;
 use crate::leaky_box_raw;
@@ -21,7 +21,7 @@ impl GattServer {
         #[allow(non_upper_case_globals)]
         match event {
             esp_gap_ble_cb_event_t_ESP_GAP_BLE_ADV_DATA_SET_COMPLETE_EVT => {
-                info!("BLE GAP advertisement data set complete.");
+                debug!("BLE GAP advertisement data set complete.");
                 info!("Starting BLE GAP advertisement.");
 
                 unsafe {
@@ -31,8 +31,8 @@ impl GattServer {
                 }
             }
             esp_gap_ble_cb_event_t_ESP_GAP_BLE_SCAN_RSP_DATA_SET_COMPLETE_EVT => {
-                info!("BLE GAP scan response data set complete.");
-                info!("Starting BLE GAP advertisement.");
+                debug!("BLE GAP scan response data set complete.");
+                info!("Starting BLE GAP response advertisement.");
 
                 unsafe {
                     esp_nofail!(esp_ble_gap_start_advertising(leaky_box_raw!(
@@ -45,8 +45,7 @@ impl GattServer {
                 if param.status != esp_bt_status_t_ESP_BT_STATUS_SUCCESS {
                     warn!("BLE GAP advertisement start failed.");
                 } else {
-                    info!("BLE GAP advertisement started.");
-
+                    debug!("BLE GAP advertisement started.");
                 }
             }
             esp_gap_ble_cb_event_t_ESP_GAP_BLE_ADV_STOP_COMPLETE_EVT => {
@@ -54,7 +53,7 @@ impl GattServer {
                 if param.status != esp_bt_status_t_ESP_BT_STATUS_SUCCESS {
                     warn!("BLE GAP advertisement stop failed.");
                 } else {
-                    info!("BLE GAP advertisement stopped.");
+                    debug!("BLE GAP advertisement stopped.");
                 }
             }
             esp_gap_ble_cb_event_t_ESP_GAP_BLE_UPDATE_CONN_PARAMS_EVT => {

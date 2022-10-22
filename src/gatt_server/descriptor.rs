@@ -1,26 +1,55 @@
-use crate::{leaky_box_raw, utilities::ble_uuid::BleUuid};
-use esp_idf_sys::{esp_ble_gatts_add_char_descr, esp_nofail};
-use log::info;
+use crate::{
+    leaky_box_raw,
+    utilities::{AttributeControl, AttributePermissions, BleUuid},
+};
+use esp_idf_sys::{
+    esp_attr_value_t, esp_ble_gatts_add_char_descr, esp_ble_gatts_set_attr_value, esp_nofail,
+};
+use log::{debug, info};
 
 #[derive(Debug, Clone)]
 pub struct Descriptor {
     name: Option<String>,
     pub(crate) uuid: BleUuid,
     value: Vec<u8>,
+    pub(crate) attribute_handle: Option<u16>,
+    // TODO: Private.
+    pub permissions: AttributePermissions,
 }
 
 impl Descriptor {
-    pub fn new(name: &str, uuid: BleUuid) -> Descriptor {
-        Descriptor {
+    pub fn new(name: &str, uuid: BleUuid, permissions: AttributePermissions) -> Self {
+        Self {
             name: Some(String::from(name)),
             uuid,
             value: Vec::new(),
+            attribute_handle: None,
+            permissions,
         }
     }
 
+    pub fn set_value(&mut self, value: Vec<u8>) -> &mut Self {
+        self.value = value;
+        if let Some(handle) = self.attribute_handle {
+            unsafe {
+                esp_nofail!(esp_ble_gatts_set_attr_value(
+                    handle,
+                    self.value.len() as u16,
+                    self.value.as_slice().as_ptr()
+                ));
+            }
+        } else {
+            info!(
+                "Descriptor {} not registered yet, value will be set on registration.",
+                self
+            );
+        }
+        self
+    }
+
     pub(crate) fn register_self(&mut self, service_handle: u16) {
-        info!(
-            "Registering {} into service at handle {}.",
+        debug!(
+            "Registering {} into service at handle 0x{:04x}.",
             self, service_handle
         );
 
@@ -28,9 +57,14 @@ impl Descriptor {
             esp_nofail!(esp_ble_gatts_add_char_descr(
                 service_handle,
                 leaky_box_raw!(self.uuid.into()),
-                0,
-                std::ptr::null_mut(),
-                std::ptr::null_mut(),
+                self.permissions.into(),
+                leaky_box_raw!(esp_attr_value_t {
+                    attr_max_len: self.value.len() as u16,
+                    attr_len: self.value.len() as u16,
+                    attr_value: self.value.as_mut_slice().as_mut_ptr(),
+                }),
+                // TODO: Add custom control.
+                leaky_box_raw!(AttributeControl::AutomaticResponse(Vec::new()).into()),
             ));
         }
     }

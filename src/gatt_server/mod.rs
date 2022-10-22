@@ -1,4 +1,3 @@
-use std::ptr::replace;
 use std::sync::Mutex;
 
 use esp_idf_sys::{
@@ -7,7 +6,6 @@ use esp_idf_sys::{
     esp_ble_adv_params_t, esp_ble_adv_type_t_ADV_TYPE_IND, esp_ble_gap_cb_param_t,
     esp_ble_gap_register_callback, esp_ble_gatts_cb_param_t, esp_ble_gatts_register_callback,
     esp_bluedroid_enable, esp_bluedroid_init, esp_bt_controller_config_t, esp_bt_controller_enable,
-    esp_ble_gap_set_device_name,
     esp_bt_controller_init, esp_bt_controller_mem_release, esp_bt_mode_t_ESP_BT_MODE_BLE,
     esp_bt_mode_t_ESP_BT_MODE_CLASSIC_BT, esp_gap_ble_cb_event_t, esp_gatt_if_t,
     esp_gatts_cb_event_t, esp_nofail, nvs_flash_erase, nvs_flash_init, AGC_RECORRECT_EN,
@@ -22,23 +20,26 @@ use esp_idf_sys::{
     ESP_BT_CTRL_CONFIG_VERSION, ESP_ERR_NVS_NEW_VERSION_FOUND, ESP_ERR_NVS_NO_FREE_PAGES,
     ESP_TASK_BT_CONTROLLER_PRIO, ESP_TASK_BT_CONTROLLER_STACK, MESH_DUPLICATE_SCAN_CACHE_SIZE,
     NORMAL_SCAN_DUPLICATE_CACHE_SIZE, SCAN_DUPLICATE_MODE, SCAN_DUPLICATE_TYPE_VALUE,
-    SLAVE_CE_LEN_MIN_DEFAULT, esp_bluedroid_get_status,
+    SLAVE_CE_LEN_MIN_DEFAULT,
 };
 use lazy_static::lazy_static;
 use log::{info, warn};
+
+use crate::{leaky_box_raw, utilities::Appearance};
 
 pub use characteristic::Characteristic;
 pub use descriptor::Descriptor;
 pub use profile::Profile;
 pub use service::Service;
 
-use crate::leaky_box_raw;
-
 // Structs.
 mod characteristic;
 mod descriptor;
 mod profile;
 mod service;
+
+// Custom stuff.
+mod custom_attributes;
 
 // Event handler.
 mod gap_event_handler;
@@ -63,7 +64,7 @@ lazy_static! {
             include_txpower: true,
             min_interval: 0x0006,
             max_interval: 0x0010,
-            appearance: 0x0000,
+            appearance: Appearance::GenericUnknown.into(),
             manufacturer_len: 0,
             p_manufacturer_data: std::ptr::null_mut(),
             service_data_len: 0,
@@ -71,7 +72,24 @@ lazy_static! {
             service_uuid_len: 0,
             p_service_uuid: std::ptr::null_mut(),
             flag: (ESP_BLE_ADV_FLAG_GEN_DISC | ESP_BLE_ADV_FLAG_BREDR_NOT_SPT) as u8,
-        }
+        },
+        scan_response_data: esp_ble_adv_data_t {
+            set_scan_rsp: true,
+            include_name: false,
+            include_txpower: false,
+            min_interval: 0x0006,
+            max_interval: 0x0010,
+            appearance: Appearance::GenericUnknown.into(),
+            manufacturer_len: 0,
+            p_manufacturer_data: std::ptr::null_mut(),
+            service_data_len: 0,
+            p_service_data: std::ptr::null_mut(),
+            service_uuid_len: 0,
+            p_service_uuid: std::ptr::null_mut(),
+            flag: (ESP_BLE_ADV_FLAG_GEN_DISC | ESP_BLE_ADV_FLAG_BREDR_NOT_SPT) as u8,
+        },
+        advertisement_configured: false,
+        device_name: "ESP32".to_string(),
     }));
 }
 
@@ -80,6 +98,9 @@ pub struct GattServer {
     started: bool,
     advertisement_parameters: esp_ble_adv_params_t,
     advertisement_data: esp_ble_adv_data_t,
+    scan_response_data: esp_ble_adv_data_t,
+    device_name: String,
+    advertisement_configured: bool,
 }
 
 unsafe impl Send for GattServer {}
@@ -100,6 +121,32 @@ impl GattServer {
         })
     }
 
+    pub fn device_name<S: Into<String>>(&mut self, name: S) -> &mut Self {
+        if self.advertisement_configured {
+            warn!(
+                "Device name already set. Please set the device name before starting the server."
+            );
+            return self;
+        }
+
+        self.device_name = name.into();
+        self.device_name.push('\0');
+
+        self
+    }
+
+    pub fn appearance(&mut self, appearance: Appearance) -> &mut Self {
+        if self.advertisement_configured {
+            warn!("Appearance already set. Please set the appearance before starting the server.");
+            return self;
+        }
+        
+        self.advertisement_data.appearance = appearance.into();
+        self.scan_response_data.appearance = appearance.into();
+
+        self
+    }
+
     pub fn add_profiles(&mut self, profiles: &[Profile]) -> &mut Self {
         self.profiles.append(&mut profiles.to_vec());
         if self.started {
@@ -116,10 +163,17 @@ impl GattServer {
 
     pub fn set_adv_data(&mut self, data: esp_ble_adv_data_t) -> &mut Self {
         self.advertisement_data = data;
+
         self
     }
 
-    // TODO: Update adv data on service add!
+    pub fn advertise_service(&mut self, service: Service) -> &mut Self {
+        self.scan_response_data.p_service_uuid =
+            leaky_box_raw!(service.uuid.as_uuid128_array()) as *mut u8;
+        self.scan_response_data.service_uuid_len = service.uuid.as_uuid128_array().len() as u16;
+
+        self
+    }
 
     fn initialise_ble_stack(&mut self) {
         info!("Initialising BLE stack.");
