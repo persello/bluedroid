@@ -2,6 +2,23 @@
 name = "bluedroid"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+description = "A wrapper for the ESP32 Bluedroid Bluetooth stack."
+repository = "https://github.com/pulse-loop/bluedroid"
+keywords = ["bluetooth", "bluedroid", "esp32", "embedded", "ble"]
+categories = ["embedded"]
+readme = "README.md"
+
+exclude = [
+    ".embuild",
+    ".idea",
+    ".vscode",
+    "target",
+    "Cargo.lock",
+]
+
+[package.metadata.esp-idf-sys]
+esp_idf_tools_install_dir = "out"
 
 [dependencies]
 esp-idf-sys = { version = "0.31.7", features = ["native"] }
