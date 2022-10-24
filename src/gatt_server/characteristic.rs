@@ -4,16 +4,15 @@ use crate::{
     utilities::{AttributeControl, AttributePermissions, BleUuid, CharacteristicProperties},
 };
 use esp_idf_sys::{
-    esp_attr_value_t, esp_ble_gatts_add_char, esp_ble_gatts_set_attr_value, esp_nofail,
+    esp_attr_value_t, esp_ble_gatts_add_char, esp_ble_gatts_set_attr_value, esp_nofail, esp_attr_control_t,
 };
-use log::{debug, warn};
+use log::{info, warn, debug};
 use std::{cell::RefCell, fmt::Formatter, sync::{Arc, RwLock}};
 
 #[derive(Debug, Clone)]
 pub struct Characteristic {
     name: Option<String>,
     pub(crate) uuid: BleUuid,
-    pub(crate) internal_value: Vec<u8>,
     pub(crate) write_callback: Option<fn(Vec<u8>)>,
     pub(crate) descriptors: Vec<Arc<RwLock<Descriptor>>>,
     pub(crate) attribute_handle: Option<u16>,
@@ -21,6 +20,8 @@ pub struct Characteristic {
     permissions: AttributePermissions,
     pub(crate) properties: CharacteristicProperties,
     pub(crate) control: AttributeControl,
+    pub(crate) internal_value: Vec<u8>,
+    internal_control: esp_attr_control_t,
 }
 
 impl Characteristic {
@@ -42,6 +43,7 @@ impl Characteristic {
             permissions,
             properties,
             control: AttributeControl::AutomaticResponse(vec![0]),
+            internal_control: AttributeControl::AutomaticResponse(vec![0]).into(),
         }
     }
 
@@ -65,7 +67,7 @@ impl Characteristic {
 
     /// Registers the [`Characteristic`] at the given service handle.
     pub(crate) fn register_self(&mut self, service_handle: u16) {
-        debug!(
+        /*d*/info!(
             "Registering {} into service at handle 0x{:04x}.",
             self, service_handle
         );
@@ -82,11 +84,12 @@ impl Characteristic {
                 self.permissions.into(),
                 self.properties.into(),
                 leaky_box_raw!(esp_attr_value_t {
-                    attr_max_len: self.internal_value.len() as u16,
+                    // TODO: Shoot me. SHOOT ME.
+                    attr_max_len: 32 as u16,
                     attr_len: self.internal_value.len() as u16,
                     attr_value: self.internal_value.as_mut_slice().as_mut_ptr(),
                 }),
-                leaky_box_raw!(self.control.clone().into()),
+                &mut self.internal_control,
             ));
         }
     }
@@ -104,7 +107,7 @@ impl Characteristic {
     /// Bluedroid does not offer a way to register descriptors to a specific characteristic.
     /// This is simply done by registering the characteristic and then registering its descriptors.
     pub(crate) fn register_descriptors(&mut self) {
-        debug!("Registering {}'s descriptors.", &self);
+        /*d*/info!("Registering {}'s descriptors.", &self);
         self.descriptors.iter_mut().for_each(|descriptor| {
             descriptor
                 .write().unwrap()
@@ -114,7 +117,7 @@ impl Characteristic {
         });
     }
 
-    pub fn on_read(&mut self, response_type: AttributeControl) -> &mut Self {
+    pub fn on_read(&mut self, callback: fn() -> Vec<u8>) -> &mut Self {
         if !self.properties.read || !self.permissions.read_access {
             warn!(
                 "Characteristic {} does not have read permissions. Ignoring read callback.",
@@ -124,24 +127,8 @@ impl Characteristic {
             return self;
         }
 
-        self.control = response_type;
-
-        // If the response type is an automatic response, we need to update the value.
-        if let AttributeControl::AutomaticResponse(value) = &self.control {
-            self.internal_value = value.clone();
-
-            if let Some(handle) = self.attribute_handle {
-                unsafe {
-                    esp_nofail!(esp_ble_gatts_set_attr_value(
-                        handle,
-                        self.internal_value.len() as u16,
-                        self.internal_value.as_mut_slice().as_mut_ptr()
-                    ));
-                }
-            }
-        }
-
-        // Else the callback is already set in the control property.
+        self.control = AttributeControl::ResponseByApp(callback);
+        self.internal_control = self.control.clone().into();
 
         self
     }
@@ -176,13 +163,17 @@ impl Characteristic {
 
     pub fn set_value<T: Into<Vec<u8>>>(&mut self, value: T) -> &mut Self {
         self.internal_value = value.into();
+        self.control = AttributeControl::AutomaticResponse(self.internal_value.clone());
+        self.internal_control = self.control.clone().into();
+
+        info!("Trying to set value of {} to {:?}.", self, self.internal_value);
 
         if let Some(handle) = self.attribute_handle {
             unsafe {
                 esp_nofail!(esp_ble_gatts_set_attr_value(
                     handle,
                     self.internal_value.len() as u16,
-                    self.internal_value.as_mut_slice().as_mut_ptr()
+                    self.internal_value.as_slice().as_ptr()
                 ));
             }
         }

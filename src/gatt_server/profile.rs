@@ -48,12 +48,12 @@ impl Profile {
     }
 
     pub(crate) fn register_self(&self) {
-        debug!("Registering {}.", self);
+        /*d*/info!("Registering {}.", self);
         unsafe { esp_nofail!(esp_ble_gatts_app_register(self.identifier)) };
     }
 
     pub(crate) fn register_services(&mut self) {
-        debug!("Registering {}'s services.", &self);
+        /*d*/info!("Registering {}'s services.", &self);
         self.services.iter_mut().for_each(|service| {
             service.write().unwrap().register_self(self.interface.unwrap());
         });

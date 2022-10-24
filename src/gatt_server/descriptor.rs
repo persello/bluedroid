@@ -50,7 +50,7 @@ impl Descriptor {
     }
 
     pub(crate) fn register_self(&mut self, service_handle: u16) {
-        debug!(
+        /*d*/info!(
             "Registering {} into service at handle 0x{:04x}.",
             self, service_handle
         );

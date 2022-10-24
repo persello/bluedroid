@@ -12,9 +12,9 @@ use log::info;
 
 lazy_static! {
     // Keep track of a counter value.
-    static ref COUNTER: std::sync::Mutex<u8> = std::sync::Mutex::new(0);
+    static ref COUNTER: Mutex<u8> = Mutex::new(0);
     // Keep track of a writable value.
-    static ref WRITABLE: std::sync::Mutex<u8> = std::sync::Mutex::new(0);
+    static ref WRITABLE: Mutex<u8> = Mutex::new(0);
 }
 
 fn main() {
@@ -30,9 +30,7 @@ fn main() {
             AttributePermissions::read(),
             CharacteristicProperties::new().read(),
         )
-        .on_read(AttributeControl::AutomaticResponse(
-            "ESP32".as_bytes().to_vec(),
-        ))
+        .set_value("Espressif".as_bytes())
         .to_owned(),
     ));
 
@@ -43,9 +41,7 @@ fn main() {
             AttributePermissions::read(),
             CharacteristicProperties::new().read(),
         )
-        .on_read(AttributeControl::AutomaticResponse(
-            "ESP32".as_bytes().to_vec(),
-        ))
+        .set_value("ESP32".as_bytes())
         .to_owned(),
     ));
 
@@ -73,14 +69,7 @@ fn main() {
             AttributePermissions::read(),
             CharacteristicProperties::new().read(),
         )
-        .on_read(AttributeControl::ResponseByApp(|| {
-            info!("Heart Rate Measurement callback called.");
-            let mut counter = COUNTER.lock().unwrap();
-            *counter += 1;
-            format!("Heart rate, response #{}!", counter)
-                .as_bytes()
-                .to_vec()
-        }))
+        .set_value([0])
         .show_name_as_descriptor()
         .to_owned(),
     ));
@@ -100,15 +89,15 @@ fn main() {
             AttributePermissions::read_write(),
             CharacteristicProperties::new()
                 .read()
-                .write_without_response(),
+                .write(),
         )
-        .on_read(AttributeControl::ResponseByApp(|| {
+        .on_read(|| {
             info!("Custom Characteristic read callback called.");
             let writable = WRITABLE.lock().unwrap();
             format!("Custom Characteristic read, value is {}!", writable)
                 .as_bytes()
                 .to_vec()
-        }))
+        })
         .on_write(|data| {
             info!("Custom Characteristic write callback called.");
             let mut writable = WRITABLE.lock().unwrap();

@@ -21,7 +21,7 @@ impl GattServer {
         #[allow(non_upper_case_globals)]
         match event {
             esp_gap_ble_cb_event_t_ESP_GAP_BLE_ADV_DATA_SET_COMPLETE_EVT => {
-                debug!("BLE GAP advertisement data set complete.");
+                /*d*/info!("BLE GAP advertisement data set complete.");
                 info!("Starting BLE GAP advertisement.");
 
                 unsafe {
@@ -31,7 +31,7 @@ impl GattServer {
                 }
             }
             esp_gap_ble_cb_event_t_ESP_GAP_BLE_SCAN_RSP_DATA_SET_COMPLETE_EVT => {
-                debug!("BLE GAP scan response data set complete.");
+                /*d*/info!("BLE GAP scan response data set complete.");
                 info!("Starting BLE GAP response advertisement.");
 
                 unsafe {
@@ -45,7 +45,7 @@ impl GattServer {
                 if param.status != esp_bt_status_t_ESP_BT_STATUS_SUCCESS {
                     warn!("BLE GAP advertisement start failed.");
                 } else {
-                    debug!("BLE GAP advertisement started.");
+                    /*d*/info!("BLE GAP advertisement started.");
                 }
             }
             esp_gap_ble_cb_event_t_ESP_GAP_BLE_ADV_STOP_COMPLETE_EVT => {
@@ -53,7 +53,7 @@ impl GattServer {
                 if param.status != esp_bt_status_t_ESP_BT_STATUS_SUCCESS {
                     warn!("BLE GAP advertisement stop failed.");
                 } else {
-                    debug!("BLE GAP advertisement stopped.");
+                    /*d*/info!("BLE GAP advertisement stopped.");
                 }
             }
             esp_gap_ble_cb_event_t_ESP_GAP_BLE_UPDATE_CONN_PARAMS_EVT => {

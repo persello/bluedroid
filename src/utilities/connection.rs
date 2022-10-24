@@ -51,3 +51,20 @@ impl From<esp_ble_gatts_cb_param_t_gatts_disconnect_evt_param> for Connection {
         }
     }
 }
+
+impl std::fmt::Display for Connection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X} ({}, slave: {})",
+            self.remote_bda[0],
+            self.remote_bda[1],
+            self.remote_bda[2],
+            self.remote_bda[3],
+            self.remote_bda[4],
+            self.remote_bda[5],
+            self.id,
+            self.is_slave,
+        )
+    }
+}
