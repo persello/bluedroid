@@ -168,7 +168,7 @@ impl GattServer {
                         let v = unsafe {*value};
                         let vv = unsafe {std::slice::from_raw_parts(v, len as usize)};
 
-                        info!("Characteristic {} value changed to {:02X?}.", characteristic.read().unwrap(), vv);
+                        debug!("Characteristic {} value changed to {:02X?}.", characteristic.read().unwrap(), vv);
                     } else {
                         warn!("Cannot find characteristic described by service handle {} and attribute handle {} received in set attribute value event.", param.srvc_handle, param.attr_handle);
                     }

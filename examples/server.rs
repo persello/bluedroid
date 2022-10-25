@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex, RwLock};
 
 use bluedroid::{
-    gatt_server::{Characteristic, Profile, Service, GLOBAL_GATT_SERVER},
+    gatt_server::{Characteristic, Descriptor, Profile, Service, GLOBAL_GATT_SERVER},
     utilities::{AttributePermissions, BleUuid, CharacteristicProperties},
 };
 use embedded_hal::delay::blocking::DelayUs;
@@ -69,6 +69,15 @@ fn main() {
         )
         .set_value(0u32.to_le_bytes())
         .show_name_as_descriptor()
+        .add_descriptor(Arc::new(RwLock::new(
+            Descriptor::new(
+                "CCCD",
+                BleUuid::from_uuid16(0x2902),
+                AttributePermissions::read_write(),
+            )
+            .set_value(0u16.to_le_bytes())
+            .to_owned(),
+        )))
         .to_owned(),
     ));
 

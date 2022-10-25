@@ -29,8 +29,9 @@ impl Descriptor {
         }
     }
 
-    pub fn set_value(&mut self, value: Vec<u8>) -> &mut Self {
-        self.value = value;
+    // TODO: Implement same mechanism as for characteristics.
+    pub fn set_value<T: Into<Vec<u8>>>(&mut self, value: T) -> &mut Self {
+        self.value = value.into();
         if let Some(handle) = self.attribute_handle {
             unsafe {
                 esp_nofail!(esp_ble_gatts_set_attr_value(

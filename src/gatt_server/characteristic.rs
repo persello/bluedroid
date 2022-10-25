@@ -7,7 +7,7 @@ use esp_idf_sys::{
     esp_attr_control_t, esp_attr_value_t, esp_ble_gatts_add_char, esp_ble_gatts_set_attr_value,
     esp_nofail,
 };
-use log::{info, warn, debug};
+use log::{warn, debug};
 use std::{
     fmt::Formatter,
     sync::{Arc, RwLock},
@@ -218,8 +218,8 @@ impl Characteristic {
         self.control = AttributeControl::AutomaticResponse(self.internal_value.clone());
         self.internal_control = self.control.clone().into();
 
-        info!(
-            "Trying to set value of {} to {:?}.",
+        debug!(
+            "Trying to set value of {} to {:02X?}.",
             self, self.internal_value
         );
 
