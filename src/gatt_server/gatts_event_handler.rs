@@ -1,10 +1,12 @@
 use std::ffi::c_char;
 
+use crate::gatt_server::profile::Profile;
 use crate::{
     gatt_server::GattServer,
     leaky_box_raw,
     utilities::{AttributeControl, BleUuid, Connection},
 };
+
 use esp_idf_sys::{
     esp_ble_gap_config_adv_data, esp_ble_gap_set_device_name, esp_ble_gap_start_advertising,
     esp_ble_gatts_cb_param_t, esp_ble_gatts_get_attr_value, esp_ble_gatts_send_indicate,
@@ -18,11 +20,7 @@ use esp_idf_sys::{
     esp_gatts_cb_event_t_ESP_GATTS_RESPONSE_EVT, esp_gatts_cb_event_t_ESP_GATTS_SET_ATTR_VAL_EVT,
     esp_gatts_cb_event_t_ESP_GATTS_START_EVT, esp_gatts_cb_event_t_ESP_GATTS_WRITE_EVT, esp_nofail,
 };
-use log::{debug, info, warn};
-
-use crate::gatt_server::profile::Profile;
-
-use super::{characteristic, descriptor, Descriptor};
+use log::{info, warn};
 
 impl GattServer {
     /// The main GATT server event loop.
@@ -116,7 +114,10 @@ impl GattServer {
                 let param = unsafe { (*param).set_attr_val };
 
                 if param.status != esp_gatt_status_t_ESP_GATT_OK {
-                    warn!("Failed to set attribute value, error code: {:04x}.", param.status);
+                    warn!(
+                        "Failed to set attribute value, error code: {:04x}.",
+                        param.status
+                    );
                 }
 
                 if let Some(profile) = self.get_profile(gatts_if) &&
@@ -354,7 +355,6 @@ impl Profile {
                                         ));
                                     }
                                 }
-                                return;
                             }
                         }
                     });

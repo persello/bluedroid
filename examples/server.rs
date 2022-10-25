@@ -1,9 +1,7 @@
-use std::sync::{Arc, RwLock, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
-use bluedroid::gatt_server::{Characteristic, GLOBAL_GATT_SERVER};
-use bluedroid::utilities::AttributeControl;
 use bluedroid::{
-    gatt_server::{Profile, Service},
+    gatt_server::{Characteristic, Profile, Service, GLOBAL_GATT_SERVER},
     utilities::{AttributePermissions, BleUuid, CharacteristicProperties},
 };
 use embedded_hal::delay::blocking::DelayUs;
@@ -69,7 +67,7 @@ fn main() {
             AttributePermissions::read(),
             CharacteristicProperties::new().read(),
         )
-        .set_value([0])
+        .set_value(0u32.to_le_bytes())
         .show_name_as_descriptor()
         .to_owned(),
     ));
@@ -87,9 +85,7 @@ fn main() {
             "Custom Characteristic",
             BleUuid::from_uuid128_string("FBFBFBFB-FBFB-FBFB-FBFB-FBFBFBFBFBFB"),
             AttributePermissions::read_write(),
-            CharacteristicProperties::new()
-                .read()
-                .write(),
+            CharacteristicProperties::new().read().write(),
         )
         .on_read(|| {
             info!("Custom Characteristic read callback called.");

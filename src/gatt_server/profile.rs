@@ -1,8 +1,8 @@
-use std::{cell::RefCell, sync::{Arc, RwLock}};
+use std::sync::{Arc, RwLock};
 
-use crate::{gatt_server::service::Service, utilities::BleUuid};
+use crate::{gatt_server::service::Service};
 use esp_idf_sys::*;
-use log::{debug, info};
+use log::info;
 
 #[derive(Debug, Clone)]
 pub struct Profile {
@@ -48,14 +48,19 @@ impl Profile {
     }
 
     pub(crate) fn register_self(&self) {
-        /*d*/info!("Registering {}.", self);
+        /*d*/
+        info!("Registering {}.", self);
         unsafe { esp_nofail!(esp_ble_gatts_app_register(self.identifier)) };
     }
 
     pub(crate) fn register_services(&mut self) {
-        /*d*/info!("Registering {}'s services.", &self);
+        /*d*/
+        info!("Registering {}'s services.", &self);
         self.services.iter_mut().for_each(|service| {
-            service.write().unwrap().register_self(self.interface.unwrap());
+            service
+                .write()
+                .unwrap()
+                .register_self(self.interface.unwrap());
         });
     }
 }

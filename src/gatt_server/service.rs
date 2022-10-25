@@ -4,7 +4,10 @@ use crate::{
 };
 use esp_idf_sys::*;
 use log::info;
-use std::{cell::RefCell, fmt::Formatter, sync::{Arc, RwLock}};
+use std::{
+    fmt::Formatter,
+    sync::{Arc, RwLock},
+};
 
 #[derive(Debug, Clone)]
 pub struct Service {
@@ -26,10 +29,7 @@ impl Service {
         }
     }
 
-    pub fn add_characteristic(
-        &mut self,
-        characteristic: Arc<RwLock<Characteristic>>,
-    ) -> &mut Self {
+    pub fn add_characteristic(&mut self, characteristic: Arc<RwLock<Characteristic>>) -> &mut Self {
         self.characteristics.push(characteristic);
         self
     }
@@ -51,20 +51,12 @@ impl Service {
             .cloned()
     }
 
-    pub(crate) fn get_descriptor(&self, handle: u16) -> Option<Arc<RwLock<Descriptor>>> {
+    pub(crate) fn get_descriptor_by_id(
+        &self,
+        id: esp_bt_uuid_t,
+    ) -> Option<Arc<RwLock<Descriptor>>> {
         for characteristic in &self.characteristics {
-            for descriptor in characteristic.read().unwrap().clone().descriptors {
-                if descriptor.read().unwrap().attribute_handle == Some(handle) {
-                    return Some(descriptor);
-                }
-            }
-        }
-
-        None
-    }
-
-    pub(crate) fn get_descriptor_by_id(&self, id: esp_bt_uuid_t) -> Option<Arc<RwLock<Descriptor>>> {
-        for characteristic in &self.characteristics {
+            #[allow(clippy::significant_drop_in_scrutinee)]
             for descriptor in characteristic.read().unwrap().clone().descriptors {
                 if descriptor.read().unwrap().uuid == id.into() {
                     return Some(descriptor);
@@ -76,7 +68,8 @@ impl Service {
     }
 
     pub(crate) fn register_self(&mut self, interface: u8) {
-        /*d*/info!("Registering {} on interface {}.", &self, interface);
+        /*d*/
+        info!("Registering {} on interface {}.", &self, interface);
 
         let id: esp_gatt_srvc_id_t = esp_gatt_srvc_id_t {
             id: self.uuid.into(),
@@ -93,7 +86,8 @@ impl Service {
     }
 
     pub(crate) fn register_characteristics(&mut self) {
-        /*d*/info!("Registering {}'s characteristics.", &self);
+        /*d*/
+        info!("Registering {}'s characteristics.", &self);
         self.characteristics.iter().for_each(|characteristic| {
             characteristic.write().unwrap().register_self(
                 self.handle

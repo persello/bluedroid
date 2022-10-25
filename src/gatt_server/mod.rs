@@ -1,6 +1,6 @@
 use std::{
     collections::HashSet,
-    sync::{RwLock, Arc, Mutex},
+    sync::{Arc, Mutex, RwLock},
 };
 
 use esp_idf_sys::{
@@ -186,7 +186,8 @@ impl GattServer {
     pub(crate) fn get_profile(&self, interface: u8) -> Option<Arc<RwLock<Profile>>> {
         self.profiles
             .iter()
-            .find(|profile| profile.write().unwrap().interface == Some(interface)).cloned()
+            .find(|profile| profile.write().unwrap().interface == Some(interface))
+            .cloned()
     }
 
     fn initialise_ble_stack(&mut self) {
