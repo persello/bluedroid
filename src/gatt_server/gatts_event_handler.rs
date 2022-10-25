@@ -1,4 +1,3 @@
-use crate::gatt_server::profile::Profile;
 use crate::{
     gatt_server::GattServer,
     leaky_box_raw,
