@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use crate::{gatt_server::service::Service};
 use esp_idf_sys::*;
-use log::info;
+use log::debug;
 
 #[derive(Debug, Clone)]
 pub struct Profile {
@@ -48,14 +48,12 @@ impl Profile {
     }
 
     pub(crate) fn register_self(&self) {
-        /*d*/
-        info!("Registering {}.", self);
+        debug!("Registering {}.", self);
         unsafe { esp_nofail!(esp_ble_gatts_app_register(self.identifier)) };
     }
 
     pub(crate) fn register_services(&mut self) {
-        /*d*/
-        info!("Registering {}'s services.", &self);
+        debug!("Registering {}'s services.", &self);
         self.services.iter_mut().for_each(|service| {
             service
                 .write()

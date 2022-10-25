@@ -6,7 +6,7 @@ use crate::{
 use esp_idf_sys::{
     esp_attr_value_t, esp_ble_gatts_add_char_descr, esp_ble_gatts_set_attr_value, esp_nofail,
 };
-use log::info;
+use log::{info, debug};
 
 #[derive(Debug, Clone)]
 pub struct Descriptor {
@@ -49,8 +49,7 @@ impl Descriptor {
     }
 
     pub(crate) fn register_self(&mut self, service_handle: u16) {
-        /*d*/
-        info!(
+        debug!(
             "Registering {} into service at handle 0x{:04x}.",
             self, service_handle
         );

@@ -3,7 +3,7 @@ use crate::{
     leaky_box_raw, utilities::BleUuid,
 };
 use esp_idf_sys::*;
-use log::info;
+use log::debug;
 use std::{
     fmt::Formatter,
     sync::{Arc, RwLock},
@@ -68,8 +68,7 @@ impl Service {
     }
 
     pub(crate) fn register_self(&mut self, interface: u8) {
-        /*d*/
-        info!("Registering {} on interface {}.", &self, interface);
+        debug!("Registering {} on interface {}.", &self, interface);
 
         let id: esp_gatt_srvc_id_t = esp_gatt_srvc_id_t {
             id: self.uuid.into(),
@@ -86,8 +85,7 @@ impl Service {
     }
 
     pub(crate) fn register_characteristics(&mut self) {
-        /*d*/
-        info!("Registering {}'s characteristics.", &self);
+        debug!("Registering {}'s characteristics.", &self);
         self.characteristics.iter().for_each(|characteristic| {
             characteristic.write().unwrap().register_self(
                 self.handle

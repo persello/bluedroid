@@ -20,7 +20,7 @@ use esp_idf_sys::{
     esp_gatts_cb_event_t_ESP_GATTS_RESPONSE_EVT, esp_gatts_cb_event_t_ESP_GATTS_SET_ATTR_VAL_EVT,
     esp_gatts_cb_event_t_ESP_GATTS_START_EVT, esp_gatts_cb_event_t_ESP_GATTS_WRITE_EVT, esp_nofail,
 };
-use log::{info, warn};
+use log::{info, warn, debug};
 
 impl GattServer {
     /// The main GATT server event loop.
@@ -60,8 +60,7 @@ impl GattServer {
             }
             esp_gatts_cb_event_t_ESP_GATTS_MTU_EVT => {
                 let param = unsafe { (*param).mtu };
-                /*d*/
-                info!("MTU changed to {}.", param.mtu);
+                debug!("MTU changed to {}.", param.mtu);
 
                 // Do not pass this event to the profile handlers.
                 return;
@@ -69,8 +68,7 @@ impl GattServer {
             esp_gatts_cb_event_t_ESP_GATTS_REG_EVT => {
                 let param = unsafe { (*param).reg };
                 if param.status == esp_gatt_status_t_ESP_GATT_OK {
-                    /*d*/
-                    info!("New profile registered.");
+                    debug!("New profile registered.");
 
                     let profile = self
                         .profiles
@@ -104,8 +102,7 @@ impl GattServer {
             esp_gatts_cb_event_t_ESP_GATTS_RESPONSE_EVT => {
                 let param = unsafe { (*param).rsp };
 
-                /*d*/
-                info!("Responded to handle 0x{:04x}.", param.handle);
+                debug!("Responded to handle 0x{:04x}.", param.handle);
 
                 // Do not pass this event to the profile handlers.
                 return;
@@ -123,7 +120,7 @@ impl GattServer {
                 if let Some(profile) = self.get_profile(gatts_if) &&
                    let Some(service) = profile.read().unwrap().get_service(param.srvc_handle) &&
                    let Some(characteristic) = service.read().unwrap().get_characteristic(param.attr_handle) {
-                        /*d*/info!(
+                        debug!(
                             "Received set attribute value event for characteristic {}.",
                             characteristic.read().unwrap()
                         );
@@ -184,8 +181,7 @@ impl GattServer {
 
         self.profiles.iter().for_each(|profile| {
             if profile.read().unwrap().interface == Some(gatts_if) {
-                /*d*/
-                info!(
+                debug!(
                     "Handling event {} on profile {}.",
                     event,
                     profile.read().unwrap()
@@ -258,8 +254,7 @@ impl Profile {
                     if param.status != esp_gatt_status_t_ESP_GATT_OK {
                         warn!("GATT service {} failed to start.", service.read().unwrap());
                     } else {
-                        /*d*/
-                        info!("GATT service {} started.", service.read().unwrap());
+                        debug!("GATT service {} started.", service.read().unwrap());
                     }
                 } else {
                     warn!("Cannot find service described by handle 0x{:04x} received in service start event.", param.service_handle);
@@ -311,8 +306,7 @@ impl Profile {
                 for service in self.services.iter() {
                     service.read().unwrap().characteristics.iter().for_each(|characteristic| {
                         if characteristic.read().unwrap().attribute_handle == Some(param.handle) {
-                            /*d*/
-                            info!(
+                            debug!(
                                 "Received write event for characteristic {}.",
                                 characteristic.read().unwrap()
                             );
@@ -372,8 +366,7 @@ impl Profile {
                         .for_each(|characteristic| {
                             if characteristic.read().unwrap().attribute_handle == Some(param.handle)
                             {
-                                /*d*/
-                                info!(
+                                debug!(
                                     "Received read event for characteristic {}.",
                                     characteristic.read().unwrap()
                                 );
@@ -412,8 +405,7 @@ impl Profile {
                                         if descriptor.read().unwrap().attribute_handle
                                             == Some(param.handle)
                                         {
-                                            /*d*/
-                                            info!(
+                                            debug!(
                                                 "Received read event for descriptor {}.",
                                                 descriptor.read().unwrap()
                                             );
