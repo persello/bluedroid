@@ -1,3 +1,4 @@
+#![feature(let_chains)]
 #[macro_use]
 pub mod utilities;
 pub mod gatt_server;
