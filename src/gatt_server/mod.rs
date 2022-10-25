@@ -1,4 +1,7 @@
-use std::{collections::HashSet, sync::Mutex};
+use std::{
+    collections::HashSet,
+    sync::{RwLock, Arc, Mutex},
+};
 
 use esp_idf_sys::{
     esp_ble_addr_type_t_BLE_ADDR_TYPE_RPA_PUBLIC, esp_ble_adv_channel_t_ADV_CHNL_ALL,
@@ -25,7 +28,10 @@ use esp_idf_sys::{
 use lazy_static::lazy_static;
 use log::{info, warn};
 
-use crate::{leaky_box_raw, utilities::{Appearance, Connection}};
+use crate::{
+    leaky_box_raw,
+    utilities::{Appearance, Connection},
+};
 
 pub use characteristic::Characteristic;
 pub use descriptor::Descriptor;
@@ -95,7 +101,7 @@ lazy_static! {
 }
 
 pub struct GattServer {
-    profiles: Vec<Profile>,
+    profiles: Vec<Arc<RwLock<Profile>>>,
     started: bool,
     advertisement_parameters: esp_ble_adv_params_t,
     advertisement_data: esp_ble_adv_data_t,
@@ -118,8 +124,8 @@ impl GattServer {
         self.initialise_ble_stack();
 
         // Registration of profiles, services, characteristics and descriptors.
-        self.profiles.iter().for_each(|profile: &Profile| {
-            profile.register_self();
+        self.profiles.iter().for_each(|profile| {
+            profile.write().unwrap().register_self();
         })
     }
 
@@ -149,7 +155,7 @@ impl GattServer {
         self
     }
 
-    pub fn add_profiles(&mut self, profiles: &[Profile]) -> &mut Self {
+    pub fn add_profiles(&mut self, profiles: &[Arc<RwLock<Profile>>]) -> &mut Self {
         self.profiles.append(&mut profiles.to_vec());
         if self.started {
             warn!("In order to register the newly added profiles, you'll need to restart the GATT server.");
@@ -175,6 +181,12 @@ impl GattServer {
         self.scan_response_data.service_uuid_len = service.uuid.as_uuid128_array().len() as u16;
 
         self
+    }
+
+    pub(crate) fn get_profile(&self, interface: u8) -> Option<Arc<RwLock<Profile>>> {
+        self.profiles
+            .iter()
+            .find(|profile| profile.write().unwrap().interface == Some(interface)).cloned()
     }
 
     fn initialise_ble_stack(&mut self) {
