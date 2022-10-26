@@ -1,3 +1,5 @@
+use std::ffi::c_char;
+
 use crate::{
     gatt_server::GattServer,
     leaky_box_raw,
@@ -75,7 +77,7 @@ impl GattServer {
                     if !self.advertisement_configured {
                         unsafe {
                             esp_nofail!(esp_ble_gap_set_device_name(
-                                self.device_name.as_ptr() as _
+                                self.device_name.as_ptr() as *const c_char
                             ));
 
                             self.advertisement_configured = true;
