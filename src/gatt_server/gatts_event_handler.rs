@@ -1,3 +1,5 @@
+use std::ffi::c_char;
+
 use crate::{
     gatt_server::GattServer,
     leaky_box_raw,
