@@ -69,15 +69,7 @@ fn main() {
         )
         .set_value(0u32.to_le_bytes())
         .show_name_as_descriptor()
-        .add_descriptor(Arc::new(RwLock::new(
-            Descriptor::new(
-                "CCCD",
-                BleUuid::from_uuid16(0x2902),
-                AttributePermissions::read_write(),
-            )
-            .set_value(0u16.to_le_bytes())
-            .to_owned(),
-        )))
+        .add_descriptor(Arc::new(RwLock::new(Descriptor::cccd())))
         .to_owned(),
     ));
 
@@ -155,9 +147,9 @@ fn main() {
             .set_value(val.to_le_bytes());
         val += 1;
     });
-    
+
     loop {
-        info!("Main loop.");
+        // info!("Main loop.");
         esp_idf_hal::delay::FreeRtos.delay_ms(1000).unwrap();
     }
 }

@@ -13,4 +13,14 @@ impl Descriptor {
         .set_value(description.as_ref().as_bytes().to_vec())
         .to_owned()
     }
+    
+    pub fn cccd() -> Self {
+        Descriptor::new(
+            "Client Characteristic Configuration",
+                BleUuid::from_uuid16(0x2902),
+                AttributePermissions::read_write(),
+        )
+        .set_value(0u16.to_le_bytes())
+        .to_owned()
+    }
 }

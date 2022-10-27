@@ -28,6 +28,7 @@ rustdoc-args = ["--no-deps"]
 
 [dependencies]
 esp-idf-sys = { version = "0.31.10", features = ["native"] }
+esp-idf-svc = { version = "0.42.1" }
 log = { version = "0.4.17" }
 lazy_static = { version = "1.4.0" }
 

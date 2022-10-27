@@ -28,6 +28,7 @@ This is a Rust wrapper for the Bluedroid Bluetooth stack for ESP32.
   - [x] Descriptors
     - [x] Declaration
     - [x] Read
+    - [ ] Write
   - [ ] Encryption
 - [ ] GATT client
   > There are currently no plans to implement the GATT client API.

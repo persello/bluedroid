@@ -3,7 +3,7 @@ use esp_idf_sys::{
     esp_ble_gatts_cb_param_t_gatts_disconnect_evt_param,
 };
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Connection {
     id: u16,
     is_slave: bool,

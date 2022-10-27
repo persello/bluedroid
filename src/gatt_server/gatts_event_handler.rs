@@ -36,7 +36,7 @@ impl GattServer {
         match event {
             esp_gatts_cb_event_t_ESP_GATTS_CONNECT_EVT => {
                 let param = unsafe { (*param).connect };
-                info!("GATT client {:?} connected.", Connection::from(param));
+                info!("GATT client {} connected.", Connection::from(param));
                 self.active_connections.insert(param.into());
 
                 // Do not pass this event to the profile handlers.
