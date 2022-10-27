@@ -146,15 +146,18 @@ fn main() {
         ))
         .start();
 
-    let mut delay = esp_idf_hal::delay::FreeRtos;
     let mut val: u32 = 0;
-
-    loop {
-        delay.delay_ms(1000).unwrap();
+    std::thread::spawn(move || loop {
+        esp_idf_hal::delay::FreeRtos.delay_ms(1000).unwrap();
         heart_rate_characteristic
             .write()
             .unwrap()
             .set_value(val.to_le_bytes());
         val += 1;
+    });
+    
+    loop {
+        info!("Main loop.");
+        esp_idf_hal::delay::FreeRtos.delay_ms(1000).unwrap();
     }
 }
