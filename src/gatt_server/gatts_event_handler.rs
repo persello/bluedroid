@@ -18,7 +18,7 @@ use esp_idf_sys::{
     esp_gatts_cb_event_t_ESP_GATTS_DISCONNECT_EVT, esp_gatts_cb_event_t_ESP_GATTS_MTU_EVT,
     esp_gatts_cb_event_t_ESP_GATTS_READ_EVT, esp_gatts_cb_event_t_ESP_GATTS_REG_EVT,
     esp_gatts_cb_event_t_ESP_GATTS_RESPONSE_EVT, esp_gatts_cb_event_t_ESP_GATTS_SET_ATTR_VAL_EVT,
-    esp_gatts_cb_event_t_ESP_GATTS_START_EVT, esp_gatts_cb_event_t_ESP_GATTS_WRITE_EVT, esp_nofail,
+    esp_gatts_cb_event_t_ESP_GATTS_START_EVT, esp_gatts_cb_event_t_ESP_GATTS_WRITE_EVT, esp_nofail, esp_ble_gatts_cb_param_t_gatts_read_evt_param,
 };
 use log::{info, warn, debug};
 
@@ -320,12 +320,24 @@ impl Profile {
                                 }
                                 .to_vec();
 
-                                write_callback(value);
+                                write_callback(value, param);
 
                                 // Send response if needed.
                                 if param.need_rsp && let AttributeControl::ResponseByApp(read_callback) = characteristic.read().unwrap().control {
+                                    
+                                    // Simulate a read operation.
+                                    let param_as_read_operation = esp_ble_gatts_cb_param_t_gatts_read_evt_param {
+                                        bda: param.bda,
+                                        conn_id: param.conn_id,
+                                        handle: param.handle,
+                                        need_rsp: param.need_rsp,
+                                        offset: param.offset,
+                                        trans_id: param.trans_id,
+                                        ..Default::default()
+                                    };
+                                    
                                     // Get value.
-                                    let value = read_callback();
+                                    let value = read_callback(param_as_read_operation);
 
                                     // Extend the response to the maximum length.
                                     let mut response = [0u8; 600];
@@ -375,7 +387,7 @@ impl Profile {
                                 if let AttributeControl::ResponseByApp(callback) =
                                     characteristic.read().unwrap().control
                                 {
-                                    let value = callback();
+                                    let value = callback(param);
 
                                     // Extend the response to the maximum length.
                                     let mut response = [0u8; 600];

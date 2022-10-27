@@ -88,14 +88,14 @@ fn main() {
             AttributePermissions::read_write(),
             CharacteristicProperties::new().read().write(),
         )
-        .on_read(|| {
+        .on_read(|_param| {
             info!("Custom Characteristic read callback called.");
             let writable = WRITABLE.lock().unwrap();
             format!("Custom Characteristic read, value is {}!", writable)
                 .as_bytes()
                 .to_vec()
         })
-        .on_write(|data| {
+        .on_write(|data, _param| {
             info!("Custom Characteristic write callback called.");
             let mut writable = WRITABLE.lock().unwrap();
             *writable = data[0];

@@ -5,7 +5,7 @@ use crate::{
 };
 use esp_idf_sys::{
     esp_attr_control_t, esp_attr_value_t, esp_ble_gatts_add_char, esp_ble_gatts_set_attr_value,
-    esp_nofail,
+    esp_nofail, esp_ble_gatts_cb_param_t_gatts_read_evt_param, esp_ble_gatts_cb_param_t_gatts_write_evt_param,
 };
 use log::{warn, debug};
 use std::{
@@ -20,7 +20,7 @@ pub struct Characteristic {
     /// The characteristic identifier.
     pub(crate) uuid: BleUuid,
     /// The function to be called when a write happens. This functions receives the written value in the first parameter, a `Vec<u8>`.
-    pub(crate) write_callback: Option<fn(Vec<u8>)>,
+    pub(crate) write_callback: Option<fn(Vec<u8>, esp_ble_gatts_cb_param_t_gatts_write_evt_param)>,
     /// A list of descriptors for this characteristic.
     pub(crate) descriptors: Vec<Arc<RwLock<Descriptor>>>,
     /// The handle that the Bluetooth stack assigned to this characteristic.
@@ -129,6 +129,8 @@ impl Characteristic {
         });
     }
 
+    // TODO: Add event parameters.
+
     /// Sets the read callback for this characteristic.
     /// The callback willbe called when a client reads the value of this characteristic.
     ///
@@ -137,7 +139,7 @@ impl Characteristic {
     /// # Notes
     ///
     /// The callback will be called from the Bluetooth stack's context, so it must not block.
-    pub fn on_read(&mut self, callback: fn() -> Vec<u8>) -> &mut Self {
+    pub fn on_read(&mut self, callback: fn(esp_ble_gatts_cb_param_t_gatts_read_evt_param) -> Vec<u8>) -> &mut Self {
         if !self.properties.read || !self.permissions.read_access {
             warn!(
                 "Characteristic {} does not have read permissions. Ignoring read callback.",
@@ -158,7 +160,7 @@ impl Characteristic {
     ///
     /// The callback receives a `Vec<u8>` with the written value.
     /// It is up to the library user to decode the data into a meaningful format.
-    pub fn on_write(&mut self, callback: fn(Vec<u8>)) -> &mut Self {
+    pub fn on_write(&mut self, callback: fn(Vec<u8>, esp_ble_gatts_cb_param_t_gatts_write_evt_param)) -> &mut Self {
         if !((self.properties.write || self.properties.write_without_response)
             && self.permissions.write_access)
         {

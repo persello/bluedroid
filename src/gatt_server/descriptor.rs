@@ -6,7 +6,7 @@ use crate::{
 use esp_idf_sys::{
     esp_attr_value_t, esp_ble_gatts_add_char_descr, esp_ble_gatts_set_attr_value, esp_nofail,
 };
-use log::{info, debug};
+use log::{debug, info};
 
 #[derive(Debug, Clone)]
 pub struct Descriptor {
@@ -28,6 +28,11 @@ impl Descriptor {
             permissions,
         }
     }
+
+    // TODO: Finish.
+    pub fn on_read() {}
+
+    pub fn on_write() {}
 
     // TODO: Implement same mechanism as for characteristics.
     pub fn set_value<T: Into<Vec<u8>>>(&mut self, value: T) -> &mut Self {
