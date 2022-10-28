@@ -14,6 +14,8 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+use super::Profile;
+
 #[derive(Debug, Clone)]
 pub struct Characteristic {
     /// The name of the characteristic, for debugging purposes.

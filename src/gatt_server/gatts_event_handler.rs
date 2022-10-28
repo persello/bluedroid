@@ -1,6 +1,6 @@
 use std::ffi::c_char;
 
-use crate::gatt_server::profile::Profile;
+use crate::gatt_server::profile::{Profile, self};
 use crate::{
     gatt_server::GattServer,
     leaky_box_raw,

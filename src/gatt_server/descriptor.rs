@@ -10,6 +10,8 @@ use esp_idf_sys::{
 };
 use log::{debug, info, warn};
 
+use super::Profile;
+
 #[derive(Debug, Clone)]
 pub struct Descriptor {
     name: Option<String>,
