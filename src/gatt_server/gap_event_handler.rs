@@ -7,7 +7,7 @@ use esp_idf_sys::{
     esp_gap_ble_cb_event_t_ESP_GAP_BLE_UPDATE_CONN_PARAMS_EVT, esp_nofail,
 };
 
-use log::{info, warn, debug};
+use log::{debug, info, warn};
 
 use super::GattServer;
 use crate::leaky_box_raw;

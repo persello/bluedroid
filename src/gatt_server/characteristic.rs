@@ -4,10 +4,11 @@ use crate::{
     utilities::{AttributeControl, AttributePermissions, BleUuid, CharacteristicProperties},
 };
 use esp_idf_sys::{
-    esp_attr_control_t, esp_attr_value_t, esp_ble_gatts_add_char, esp_ble_gatts_set_attr_value,
-    esp_nofail, esp_ble_gatts_cb_param_t_gatts_read_evt_param, esp_ble_gatts_cb_param_t_gatts_write_evt_param,
+    esp_attr_control_t, esp_attr_value_t, esp_ble_gatts_add_char,
+    esp_ble_gatts_cb_param_t_gatts_read_evt_param, esp_ble_gatts_cb_param_t_gatts_write_evt_param,
+    esp_ble_gatts_set_attr_value, esp_nofail,
 };
-use log::{warn, debug};
+use log::{debug, warn};
 use std::{
     fmt::Formatter,
     sync::{Arc, RwLock},
@@ -139,7 +140,10 @@ impl Characteristic {
     /// # Notes
     ///
     /// The callback will be called from the Bluetooth stack's context, so it must not block.
-    pub fn on_read(&mut self, callback: fn(esp_ble_gatts_cb_param_t_gatts_read_evt_param) -> Vec<u8>) -> &mut Self {
+    pub fn on_read(
+        &mut self,
+        callback: fn(esp_ble_gatts_cb_param_t_gatts_read_evt_param) -> Vec<u8>,
+    ) -> &mut Self {
         if !self.properties.read || !self.permissions.read_access {
             warn!(
                 "Characteristic {} does not have read permissions. Ignoring read callback.",
@@ -160,7 +164,10 @@ impl Characteristic {
     ///
     /// The callback receives a `Vec<u8>` with the written value.
     /// It is up to the library user to decode the data into a meaningful format.
-    pub fn on_write(&mut self, callback: fn(Vec<u8>, esp_ble_gatts_cb_param_t_gatts_write_evt_param)) -> &mut Self {
+    pub fn on_write(
+        &mut self,
+        callback: fn(Vec<u8>, esp_ble_gatts_cb_param_t_gatts_write_evt_param),
+    ) -> &mut Self {
         if !((self.properties.write || self.properties.write_without_response)
             && self.permissions.write_access)
         {

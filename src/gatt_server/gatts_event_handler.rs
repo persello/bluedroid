@@ -9,18 +9,18 @@ use crate::{
 
 use esp_idf_sys::{
     esp_ble_gap_config_adv_data, esp_ble_gap_set_device_name, esp_ble_gap_start_advertising,
-    esp_ble_gatts_cb_param_t, esp_ble_gatts_get_attr_value, esp_ble_gatts_send_indicate,
-    esp_ble_gatts_send_response, esp_ble_gatts_start_service,
-    esp_bt_status_t_ESP_BT_STATUS_SUCCESS, esp_gatt_if_t, esp_gatt_rsp_t,
-    esp_gatt_status_t_ESP_GATT_OK, esp_gatt_value_t, esp_gatts_cb_event_t,
+    esp_ble_gatts_cb_param_t, esp_ble_gatts_cb_param_t_gatts_read_evt_param,
+    esp_ble_gatts_get_attr_value, esp_ble_gatts_send_indicate, esp_ble_gatts_send_response,
+    esp_ble_gatts_start_service, esp_bt_status_t_ESP_BT_STATUS_SUCCESS, esp_gatt_if_t,
+    esp_gatt_rsp_t, esp_gatt_status_t_ESP_GATT_OK, esp_gatt_value_t, esp_gatts_cb_event_t,
     esp_gatts_cb_event_t_ESP_GATTS_ADD_CHAR_DESCR_EVT, esp_gatts_cb_event_t_ESP_GATTS_ADD_CHAR_EVT,
     esp_gatts_cb_event_t_ESP_GATTS_CONNECT_EVT, esp_gatts_cb_event_t_ESP_GATTS_CREATE_EVT,
     esp_gatts_cb_event_t_ESP_GATTS_DISCONNECT_EVT, esp_gatts_cb_event_t_ESP_GATTS_MTU_EVT,
     esp_gatts_cb_event_t_ESP_GATTS_READ_EVT, esp_gatts_cb_event_t_ESP_GATTS_REG_EVT,
     esp_gatts_cb_event_t_ESP_GATTS_RESPONSE_EVT, esp_gatts_cb_event_t_ESP_GATTS_SET_ATTR_VAL_EVT,
-    esp_gatts_cb_event_t_ESP_GATTS_START_EVT, esp_gatts_cb_event_t_ESP_GATTS_WRITE_EVT, esp_nofail, esp_ble_gatts_cb_param_t_gatts_read_evt_param,
+    esp_gatts_cb_event_t_ESP_GATTS_START_EVT, esp_gatts_cb_event_t_ESP_GATTS_WRITE_EVT, esp_nofail,
 };
-use log::{info, warn, debug};
+use log::{debug, info, warn};
 
 impl GattServer {
     /// The main GATT server event loop.
@@ -324,7 +324,7 @@ impl Profile {
 
                                 // Send response if needed.
                                 if param.need_rsp && let AttributeControl::ResponseByApp(read_callback) = characteristic.read().unwrap().control {
-                                    
+
                                     // Simulate a read operation.
                                     let param_as_read_operation = esp_ble_gatts_cb_param_t_gatts_read_evt_param {
                                         bda: param.bda,
@@ -335,7 +335,7 @@ impl Profile {
                                         trans_id: param.trans_id,
                                         ..Default::default()
                                     };
-                                    
+
                                     // Get value.
                                     let value = read_callback(param_as_read_operation);
 
@@ -362,6 +362,67 @@ impl Profile {
                                     }
                                 }
                             }
+                        } else {
+                            characteristic.read().unwrap().descriptors.iter().for_each(
+                                |descriptor| {
+                                    if descriptor.read().unwrap().attribute_handle == Some(param.handle)
+                                    {
+                                        debug!(
+                                            "Received write event for descriptor {}.",
+                                            descriptor.read().unwrap()
+                                        );
+
+                                        if let Some(write_callback) = descriptor.read().unwrap().write_callback {
+                                            let value = unsafe {
+                                                std::slice::from_raw_parts(param.value, param.len as usize)
+                                            }
+                                            .to_vec();
+
+                                            write_callback(value, param);
+
+                                            // Send response if needed.
+                                            if param.need_rsp && let AttributeControl::ResponseByApp(read_callback) = descriptor.read().unwrap().control {
+
+                                                // Simulate a read operation.
+                                                let param_as_read_operation = esp_ble_gatts_cb_param_t_gatts_read_evt_param {
+                                                    bda: param.bda,
+                                                    conn_id: param.conn_id,
+                                                    handle: param.handle,
+                                                    need_rsp: param.need_rsp,
+                                                    offset: param.offset,
+                                                    trans_id: param.trans_id,
+                                                    ..Default::default()
+                                                };
+
+                                                // Get value.
+                                                let value = read_callback(param_as_read_operation);
+
+                                                // Extend the response to the maximum length.
+                                                let mut response = [0u8; 600];
+                                                response[..value.len()].copy_from_slice(&value);
+                                                
+                                                unsafe {
+                                                    esp_nofail!(esp_ble_gatts_send_response(
+                                                        gatts_if,
+                                                        param.conn_id,
+                                                        param.trans_id,
+                                                        esp_gatt_status_t_ESP_GATT_OK,
+                                                        leaky_box_raw!(esp_gatt_rsp_t {
+                                                            attr_value: esp_gatt_value_t {
+                                                                auth_req: 0,
+                                                                handle: param.handle,
+                                                                len: value.len() as u16,
+                                                                offset: 0,
+                                                                value: response,
+                                                            },
+                                                        })
+                                                    ));
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                            );
                         }
                     });
                 }
@@ -398,6 +459,7 @@ impl Profile {
                                             gatts_if,
                                             param.conn_id,
                                             param.trans_id,
+                                            // TODO: Allow different statuses.
                                             esp_gatt_status_t_ESP_GATT_OK,
                                             leaky_box_raw!(esp_gatt_rsp_t {
                                                 attr_value: esp_gatt_value_t {
@@ -421,6 +483,34 @@ impl Profile {
                                                 "Received read event for descriptor {}.",
                                                 descriptor.read().unwrap()
                                             );
+
+                                            if let AttributeControl::ResponseByApp(callback) =
+                                                descriptor.read().unwrap().control
+                                            {
+                                                let value = callback(param);
+
+                                                // Extend the response to the maximum length.
+                                                let mut response = [0u8; 600];
+                                                response[..value.len()].copy_from_slice(&value);
+
+                                                unsafe {
+                                                    esp_nofail!(esp_ble_gatts_send_response(
+                                                        gatts_if,
+                                                        param.conn_id,
+                                                        param.trans_id,
+                                                        esp_gatt_status_t_ESP_GATT_OK,
+                                                        leaky_box_raw!(esp_gatt_rsp_t {
+                                                            attr_value: esp_gatt_value_t {
+                                                                auth_req: 0,
+                                                                handle: param.handle,
+                                                                len: value.len() as u16,
+                                                                offset: 0,
+                                                                value: response,
+                                                            },
+                                                        })
+                                                    ))
+                                                }
+                                            }
                                         }
                                     },
                                 );

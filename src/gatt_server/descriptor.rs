@@ -4,9 +4,11 @@ use crate::{
 };
 
 use esp_idf_sys::{
-    esp_attr_value_t, esp_ble_gatts_add_char_descr, esp_ble_gatts_set_attr_value, esp_nofail,
+    esp_attr_control_t, esp_attr_value_t, esp_ble_gatts_add_char_descr,
+    esp_ble_gatts_cb_param_t_gatts_read_evt_param, esp_ble_gatts_cb_param_t_gatts_write_evt_param,
+    esp_ble_gatts_set_attr_value, esp_nofail,
 };
-use log::{debug, info};
+use log::{debug, info, warn};
 
 #[derive(Debug, Clone)]
 pub struct Descriptor {
@@ -16,6 +18,9 @@ pub struct Descriptor {
     pub(crate) attribute_handle: Option<u16>,
     // TODO: Private.
     pub permissions: AttributePermissions,
+    pub(crate) control: AttributeControl,
+    internal_control: esp_attr_control_t,
+    pub(crate) write_callback: Option<fn(Vec<u8>, esp_ble_gatts_cb_param_t_gatts_write_evt_param)>,
 }
 
 impl Descriptor {
@@ -26,13 +31,49 @@ impl Descriptor {
             value: Vec::new(),
             attribute_handle: None,
             permissions,
+            control: AttributeControl::AutomaticResponse(vec![0]),
+            internal_control: AttributeControl::AutomaticResponse(vec![0]).into(),
+            write_callback: None,
         }
     }
 
     // TODO: Finish.
-    pub fn on_read() {}
+    pub fn on_read(
+        &mut self,
+        callback: fn(esp_ble_gatts_cb_param_t_gatts_read_evt_param) -> Vec<u8>,
+    ) -> &mut Self {
+        if !self.permissions.read_access {
+            warn!(
+                "Descriptor {} does not have read permissions. Ignoring read callback.",
+                self
+            );
 
-    pub fn on_write() {}
+            return self;
+        }
+
+        self.control = AttributeControl::ResponseByApp(callback);
+        self.internal_control = self.control.clone().into();
+
+        self
+    }
+
+    pub fn on_write(
+        &mut self,
+        callback: fn(Vec<u8>, esp_ble_gatts_cb_param_t_gatts_write_evt_param),
+    ) -> &mut Self {
+        if !self.permissions.write_access {
+            warn!(
+                "Descriptor {} does not have write permissions. Ignoring write callback.",
+                self
+            );
+
+            return self;
+        }
+
+        self.write_callback = Some(callback);
+
+        self
+    }
 
     // TODO: Implement same mechanism as for characteristics.
     pub fn set_value<T: Into<Vec<u8>>>(&mut self, value: T) -> &mut Self {
