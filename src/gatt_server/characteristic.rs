@@ -14,8 +14,6 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use super::Profile;
-
 #[derive(Debug, Clone)]
 pub struct Characteristic {
     /// The name of the characteristic, for debugging purposes.
@@ -245,6 +243,28 @@ impl Characteristic {
         }
 
         self
+    }
+
+    pub(crate) fn get_cccd_status(
+        &self,
+        param: esp_ble_gatts_cb_param_t_gatts_read_evt_param,
+    ) -> Option<(bool, bool)> {
+        if let Some(cccd) = self
+            .descriptors
+            .iter()
+            .find(|desc| desc.read().unwrap().uuid == BleUuid::Uuid16(0x2902))
+        {
+            if let AttributeControl::ResponseByApp(callback) = cccd.read().unwrap().control {
+                let value = callback(param);
+
+                return Some((
+                    value[0] & 0b0000_0001 == 0b0000_0001,
+                    value[0] & 0b0000_0010 == 0b0000_0010,
+                ));
+            }
+        }
+
+        None
     }
 }
 

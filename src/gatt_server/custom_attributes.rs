@@ -9,8 +9,7 @@ use embedded_svc::storage::RawStorage;
 use esp_idf_svc::nvs::EspDefaultNvs;
 use esp_idf_svc::nvs_storage::EspNvsStorage;
 use lazy_static::lazy_static;
-
-use super::{GLOBAL_GATT_SERVER, profile};
+use log::debug;
 
 lazy_static! {
     static ref STORAGE: Mutex<EspNvsStorage> = Mutex::new(
@@ -38,28 +37,34 @@ impl Descriptor {
         .on_read(|param| {
             let storage = STORAGE.lock().unwrap();
 
-            // Get the characteristic UUID.
-
             // Get the descriptor handle.
-            let handle = param.handle;
 
-            // TODO: Inject characteristic UUID into the callback. Fucking hell.
+            // TODO: Find the characteristic that contains the handle.
+            // WARNING: Using the handle is incredibly stupid as the NVS is not erased across flashes.
+
+            // Inject characteristic UUID into the callback. Fucking hell.
             // Option 1. Add parent references to every object in the tree.
-            // Option 2. Shoot me.
-
-            // Find the characteristic that contains the handle.
+            // Option 2. ??????????
 
             // Create a key from the connection address.
             let key = format!(
-                "{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}",
-                param.bda[0], param.bda[1], param.bda[2], param.bda[3], param.bda[4], param.bda[5],
+                "{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}-{}",
+                param.bda[0],
+                param.bda[1],
+                param.bda[2],
+                param.bda[3],
+                param.bda[4],
+                param.bda[5],
+                param.handle
             );
 
             // Prepare buffer and read correct CCCD value from non-volatile storage.
-            let mut buf: [u8; 2] = [0; 2];
+            let mut buf: [u8; 1] = [0; 1];
             if let Some(value) = storage.get_raw(&key, &mut buf).unwrap() {
+                debug!("Read CCCD value: {:?} for key {}.", value, key);
                 value.0.to_vec()
             } else {
+                debug!("No CCCD value found for key {}.", key);
                 vec![0, 0]
             }
         })
@@ -68,9 +73,11 @@ impl Descriptor {
 
             // Create a key from the connection address.
             let key = format!(
-                "{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}",
-                param.bda[0], param.bda[1], param.bda[2], param.bda[3], param.bda[4], param.bda[5]
+                "{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}-{}",
+                param.bda[0], param.bda[1], param.bda[2], param.bda[3], param.bda[4], param.bda[5], param.handle
             );
+
+            debug!("Write CCCD value: {:?} at key {}", value, key);
 
             // Write CCCD value to non-volatile storage.
             storage.put_raw(&key, &value).unwrap();

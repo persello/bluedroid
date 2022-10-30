@@ -10,8 +10,6 @@ use esp_idf_sys::{
 };
 use log::{debug, info, warn};
 
-use super::Profile;
-
 #[derive(Debug, Clone)]
 pub struct Descriptor {
     name: Option<String>,
@@ -30,7 +28,7 @@ impl Descriptor {
         Self {
             name: Some(String::from(name)),
             uuid,
-            value: Vec::new(),
+            value: vec![0],
             attribute_handle: None,
             permissions,
             control: AttributeControl::AutomaticResponse(vec![0]),
@@ -80,6 +78,12 @@ impl Descriptor {
     // TODO: Implement same mechanism as for characteristics.
     pub fn set_value<T: Into<Vec<u8>>>(&mut self, value: T) -> &mut Self {
         self.value = value.into();
+        
+        debug!(
+            "Trying to set value of {} to {:02X?}.",
+            self, self.value
+        );
+
         if let Some(handle) = self.attribute_handle {
             unsafe {
                 esp_nofail!(esp_ble_gatts_set_attr_value(
@@ -113,8 +117,7 @@ impl Descriptor {
                     attr_len: self.value.len() as u16,
                     attr_value: self.value.as_mut_slice().as_mut_ptr(),
                 }),
-                // TODO: Add custom control.
-                leaky_box_raw!(AttributeControl::AutomaticResponse(Vec::new()).into()),
+                &mut self.internal_control,
             ));
         }
     }

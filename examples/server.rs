@@ -65,7 +65,7 @@ fn main() {
             "Heart Rate Measurement",
             BleUuid::from_uuid16(0x2A37),
             AttributePermissions::read(),
-            CharacteristicProperties::new().read(),
+            CharacteristicProperties::new().read().notify(),
         )
         .set_value(0u32.to_le_bytes())
         .show_name_as_descriptor()
@@ -140,7 +140,7 @@ fn main() {
 
     let mut val: u32 = 0;
     std::thread::spawn(move || loop {
-        esp_idf_hal::delay::FreeRtos.delay_ms(1000).unwrap();
+        esp_idf_hal::delay::FreeRtos.delay_ms(10).unwrap();
         heart_rate_characteristic
             .write()
             .unwrap()
