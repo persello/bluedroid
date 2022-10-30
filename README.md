@@ -1,5 +1,10 @@
 # Bluedroid Rust wrapper
 
+![Crates.io](https://img.shields.io/crates/v/bluedroid)
+![Crates.io](https://img.shields.io/crates/d/bluedroid)
+![Crates.io](https://img.shields.io/crates/l/bluedroid)
+
+
 This is a Rust wrapper for the Bluedroid Bluetooth stack for ESP32.
 
 ## Features
