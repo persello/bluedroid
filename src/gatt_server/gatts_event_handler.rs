@@ -118,28 +118,47 @@ impl GattServer {
                     );
                 }
 
-                if let Some(profile) = self.get_profile(gatts_if) &&
-                   let Some(service) = profile.read().unwrap().get_service(param.srvc_handle) &&
-                   let Some(characteristic) = service.read().unwrap().get_characteristic(param.attr_handle) {
-                        debug!(
-                            "Received set attribute value event for characteristic {}.",
-                            characteristic.read().unwrap()
-                        );
+                if let Some(profile) = self.get_profile(gatts_if) {
+                    if let Some(service) = profile.read().unwrap().get_service(param.srvc_handle) {
+                        if let Some(characteristic) = service
+                            .read()
+                            .unwrap()
+                            .get_characteristic(param.attr_handle)
+                        {
+                            debug!(
+                                "Received set attribute value event for characteristic {}.",
+                                characteristic.read().unwrap()
+                            );
 
+                            if characteristic.read().unwrap().properties.indicate {
+                                for connection in self.active_connections.clone() {
+                                    let simulated_read_param =
+                                        esp_ble_gatts_cb_param_t_gatts_read_evt_param {
+                                            bda: connection.remote_bda(),
+                                            conn_id: connection.id(),
+                                            handle: characteristic
+                                                .read()
+                                                .unwrap()
+                                                .descriptors
+                                                .iter()
+                                                .find(|desc| {
+                                                    desc.read().unwrap().uuid
+                                                        == BleUuid::Uuid16(0x2902)
+                                                })
+                                                .unwrap()
+                                                .read()
+                                                .unwrap()
+                                                .attribute_handle
+                                                .unwrap(),
+                                            ..Default::default()
+                                        };
 
-                        if characteristic.read().unwrap().properties.indicate {
-                            for connection in self.active_connections.clone() {
+                                    let status = characteristic
+                                        .read()
+                                        .unwrap()
+                                        .get_cccd_status(simulated_read_param);
 
-                                let simulated_read_param = esp_ble_gatts_cb_param_t_gatts_read_evt_param {
-                                    bda: connection.remote_bda(),
-                                    conn_id: connection.id(),
-                                    handle: characteristic.read().unwrap().descriptors.iter().find(|desc| {desc.read().unwrap().uuid == BleUuid::Uuid16(0x2902)}).unwrap().read().unwrap().attribute_handle.unwrap(),
-                                    ..Default::default()
-                                };
-
-                                let status = characteristic.read().unwrap().get_cccd_status(simulated_read_param);
-
-                                if let Some((_, indication)) = status && indication {
+                                    if let Some((_, indication)) = status && indication {
                                     debug!("Indicating {} value change to {:02X?}.", characteristic.read().unwrap(), connection.id());
                                     let mut internal_value = characteristic.write().unwrap().internal_value.clone();
                                     unsafe {
@@ -153,20 +172,36 @@ impl GattServer {
                                         ));
                                     }
                                 }
-                            }
-                        } else if characteristic.read().unwrap().properties.notify {
-                            for connection in self.active_connections.clone() {
+                                }
+                            } else if characteristic.read().unwrap().properties.notify {
+                                for connection in self.active_connections.clone() {
+                                    let simulated_read_param =
+                                        esp_ble_gatts_cb_param_t_gatts_read_evt_param {
+                                            bda: connection.remote_bda(),
+                                            conn_id: connection.id(),
+                                            handle: characteristic
+                                                .read()
+                                                .unwrap()
+                                                .descriptors
+                                                .iter()
+                                                .find(|desc| {
+                                                    desc.read().unwrap().uuid
+                                                        == BleUuid::Uuid16(0x2902)
+                                                })
+                                                .unwrap()
+                                                .read()
+                                                .unwrap()
+                                                .attribute_handle
+                                                .unwrap(),
+                                            ..Default::default()
+                                        };
 
-                                let simulated_read_param = esp_ble_gatts_cb_param_t_gatts_read_evt_param {
-                                    bda: connection.remote_bda(),
-                                    conn_id: connection.id(),
-                                    handle: characteristic.read().unwrap().descriptors.iter().find(|desc| {desc.read().unwrap().uuid == BleUuid::Uuid16(0x2902)}).unwrap().read().unwrap().attribute_handle.unwrap(),
-                                    ..Default::default()
-                                };
+                                    let status = characteristic
+                                        .read()
+                                        .unwrap()
+                                        .get_cccd_status(simulated_read_param);
 
-                                let status = characteristic.read().unwrap().get_cccd_status(simulated_read_param);
-
-                                if let Some((notification, _)) = status && notification {
+                                    if let Some((notification, _)) = status && notification {
                                     debug!("Notifying {} value change to {}.", characteristic.read().unwrap(), connection);
                                     let mut internal_value = characteristic.write().unwrap().internal_value.clone();
                                     unsafe {
@@ -180,25 +215,35 @@ impl GattServer {
                                         ));
                                     }
                                 }
+                                }
                             }
+
+                            let value: *mut *const u8 = &mut [0u8].as_ptr();
+                            let mut len = 512;
+                            let vector = unsafe {
+                                esp_nofail!(esp_ble_gatts_get_attr_value(
+                                    param.attr_handle,
+                                    &mut len,
+                                    value,
+                                ));
+
+                                std::slice::from_raw_parts(*value, len as usize)
+                            };
+
+                            debug!(
+                                "Characteristic {} value changed to {:02X?}.",
+                                characteristic.read().unwrap(),
+                                vector
+                            );
+                        } else {
+                            warn!("Cannot find characteristic described by service handle {} and attribute handle {} received in set attribute value event.", param.srvc_handle, param.attr_handle);
                         }
-
-                        let value: *mut *const u8 = &mut [0u8].as_ptr();
-                        let mut len = 512;
-                        let vector = unsafe {
-                            esp_nofail!(esp_ble_gatts_get_attr_value(
-                                param.attr_handle,
-                                &mut len,
-                                value,
-                            ));
-
-                            std::slice::from_raw_parts(*value, len as usize)
-                        };
-
-                        debug!("Characteristic {} value changed to {:02X?}.", characteristic.read().unwrap(), vector);
                     } else {
-                        warn!("Cannot find characteristic described by service handle {} and attribute handle {} received in set attribute value event.", param.srvc_handle, param.attr_handle);
+                        warn!("Cannot find service described by service handle {} received in set attribute value event.", param.srvc_handle);
                     }
+                } else {
+                    warn!("Cannot find profile described by interface {} received in set attribute value event.", gatts_if);
+                }
 
                 // Do not pass this event to the profile handlers.
                 return;
@@ -290,8 +335,12 @@ impl Profile {
             esp_gatts_cb_event_t_ESP_GATTS_ADD_CHAR_EVT => {
                 let param = unsafe { (*param).add_char };
 
-                if let Some(service) = self.get_service(param.service_handle) &&
-                   let Some(characteristic) = service.read().unwrap().get_characteristic_by_id(param.char_uuid) {
+                if let Some(service) = self.get_service(param.service_handle) {
+                    if let Some(characteristic) = service
+                        .read()
+                        .unwrap()
+                        .get_characteristic_by_id(param.char_uuid)
+                    {
                         if param.status != esp_gatt_status_t_ESP_GATT_OK {
                             warn!("GATT characteristic registration failed.");
                         } else {
@@ -300,31 +349,41 @@ impl Profile {
                                 characteristic.read().unwrap(),
                                 param.attr_handle
                             );
-                            characteristic.write().unwrap().attribute_handle = Some(param.attr_handle);
+                            characteristic.write().unwrap().attribute_handle =
+                                Some(param.attr_handle);
                             characteristic.write().unwrap().register_descriptors();
                         }
+                    } else {
+                        warn!("Cannot find characteristic described by service handle 0x{:04x} and characteristic identifier {} received in characteristic creation event.", param.service_handle, BleUuid::from(param.char_uuid));
+                    }
                 } else {
-                    warn!("Cannot find characteristic described by service handle 0x{:04x} and characteristic identifier {} received in characteristic creation event.", param.service_handle, BleUuid::from(param.char_uuid));
+                    warn!("Cannot find service described by handle 0x{:04x} received in characteristic creation event.", param.service_handle);
                 }
             }
             esp_gatts_cb_event_t_ESP_GATTS_ADD_CHAR_DESCR_EVT => {
                 let param = unsafe { (*param).add_char_descr };
 
-                if let Some(service) = self.get_service(param.service_handle) &&
-                   let Some(descriptor) = service.read().unwrap().get_descriptor_by_id(param.descr_uuid)
-                {
-                    if param.status != esp_gatt_status_t_ESP_GATT_OK {
-                        warn!("GATT descriptor registration failed.");
+                if let Some(service) = self.get_service(param.service_handle) {
+                    if let Some(descriptor) = service
+                        .read()
+                        .unwrap()
+                        .get_descriptor_by_id(param.descr_uuid)
+                    {
+                        if param.status != esp_gatt_status_t_ESP_GATT_OK {
+                            warn!("GATT descriptor registration failed.");
+                        } else {
+                            info!(
+                                "GATT descriptor {} registered at attribute handle 0x{:04x}.",
+                                descriptor.read().unwrap(),
+                                param.attr_handle
+                            );
+                            descriptor.write().unwrap().attribute_handle = Some(param.attr_handle);
+                        }
                     } else {
-                        info!(
-                            "GATT descriptor {} registered at attribute handle 0x{:04x}.",
-                            descriptor.read().unwrap(),
-                            param.attr_handle
-                        );
-                        descriptor.write().unwrap().attribute_handle = Some(param.attr_handle);
+                        warn!("Cannot find service described by identifier {} received in descriptor creation event.", BleUuid::from(param.descr_uuid));
                     }
                 } else {
-                    warn!("Cannot find service described by identifier {} received in descriptor creation event.", BleUuid::from(param.descr_uuid));
+                    warn!("Cannot find service described by handle 0x{:04x} received in descriptor creation event.", param.service_handle);
                 }
             }
             esp_gatts_cb_event_t_ESP_GATTS_WRITE_EVT => {
