@@ -48,10 +48,8 @@ impl Descriptor {
 
             // Create a key from the connection address.
             let key = format!(
-                "{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}-{}",
-                param.bda[0],
-                param.bda[1],
-                param.bda[2],
+                "{:02X}{:02X}{:02X}{:02X}-{:04X}",
+                /* param.bda[1], */ param.bda[2],
                 param.bda[3],
                 param.bda[4],
                 param.bda[5],
@@ -73,8 +71,12 @@ impl Descriptor {
 
             // Create a key from the connection address.
             let key = format!(
-                "{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}-{}",
-                param.bda[0], param.bda[1], param.bda[2], param.bda[3], param.bda[4], param.bda[5], param.handle
+                "{:02X}{:02X}{:02X}{:02X}-{:04X}",
+                /* param.bda[1], */ param.bda[2],
+                param.bda[3],
+                param.bda[4],
+                param.bda[5],
+                param.handle
             );
 
             debug!("Write CCCD value: {:?} at key {}", value, key);

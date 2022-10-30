@@ -130,8 +130,6 @@ impl Characteristic {
         });
     }
 
-    // TODO: Add event parameters.
-
     /// Sets the read callback for this characteristic.
     /// The callback willbe called when a client reads the value of this characteristic.
     ///

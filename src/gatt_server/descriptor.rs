@@ -37,7 +37,6 @@ impl Descriptor {
         }
     }
 
-    // TODO: Finish.
     pub fn on_read(
         &mut self,
         callback: fn(esp_ble_gatts_cb_param_t_gatts_read_evt_param) -> Vec<u8>,
@@ -78,11 +77,8 @@ impl Descriptor {
     // TODO: Implement same mechanism as for characteristics.
     pub fn set_value<T: Into<Vec<u8>>>(&mut self, value: T) -> &mut Self {
         self.value = value.into();
-        
-        debug!(
-            "Trying to set value of {} to {:02X?}.",
-            self, self.value
-        );
+
+        debug!("Trying to set value of {} to {:02X?}.", self, self.value);
 
         if let Some(handle) = self.attribute_handle {
             unsafe {

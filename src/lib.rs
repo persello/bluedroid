@@ -5,4 +5,4 @@ pub mod gatt_server;
 // TODO: Better log levels.
 // TODO: Custom errors instead of panics.
 // TODO: Clippy.
-// TODO: CCCD.
+// TODO: Builder pattern.

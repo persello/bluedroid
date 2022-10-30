@@ -79,7 +79,7 @@ impl Service {
             esp_nofail!(esp_ble_gatts_create_service(
                 interface,
                 leaky_box_raw!(id),
-                16, // TODO: count the number of characteristics and descriptors.
+                64, // TODO: count the number of characteristics and descriptors.
             ));
         }
     }

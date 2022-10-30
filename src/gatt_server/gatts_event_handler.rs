@@ -14,11 +14,12 @@ use esp_idf_sys::{
     esp_ble_gatts_start_service, esp_bt_status_t_ESP_BT_STATUS_SUCCESS, esp_gatt_if_t,
     esp_gatt_rsp_t, esp_gatt_status_t_ESP_GATT_OK, esp_gatt_value_t, esp_gatts_cb_event_t,
     esp_gatts_cb_event_t_ESP_GATTS_ADD_CHAR_DESCR_EVT, esp_gatts_cb_event_t_ESP_GATTS_ADD_CHAR_EVT,
-    esp_gatts_cb_event_t_ESP_GATTS_CONNECT_EVT, esp_gatts_cb_event_t_ESP_GATTS_CREATE_EVT,
-    esp_gatts_cb_event_t_ESP_GATTS_DISCONNECT_EVT, esp_gatts_cb_event_t_ESP_GATTS_MTU_EVT,
-    esp_gatts_cb_event_t_ESP_GATTS_READ_EVT, esp_gatts_cb_event_t_ESP_GATTS_REG_EVT,
-    esp_gatts_cb_event_t_ESP_GATTS_RESPONSE_EVT, esp_gatts_cb_event_t_ESP_GATTS_SET_ATTR_VAL_EVT,
-    esp_gatts_cb_event_t_ESP_GATTS_START_EVT, esp_gatts_cb_event_t_ESP_GATTS_WRITE_EVT, esp_nofail, esp_gatts_cb_event_t_ESP_GATTS_CONF_EVT,
+    esp_gatts_cb_event_t_ESP_GATTS_CONF_EVT, esp_gatts_cb_event_t_ESP_GATTS_CONNECT_EVT,
+    esp_gatts_cb_event_t_ESP_GATTS_CREATE_EVT, esp_gatts_cb_event_t_ESP_GATTS_DISCONNECT_EVT,
+    esp_gatts_cb_event_t_ESP_GATTS_MTU_EVT, esp_gatts_cb_event_t_ESP_GATTS_READ_EVT,
+    esp_gatts_cb_event_t_ESP_GATTS_REG_EVT, esp_gatts_cb_event_t_ESP_GATTS_RESPONSE_EVT,
+    esp_gatts_cb_event_t_ESP_GATTS_SET_ATTR_VAL_EVT, esp_gatts_cb_event_t_ESP_GATTS_START_EVT,
+    esp_gatts_cb_event_t_ESP_GATTS_WRITE_EVT, esp_nofail,
 };
 use log::{debug, info, warn};
 
@@ -124,7 +125,7 @@ impl GattServer {
                             "Received set attribute value event for characteristic {}.",
                             characteristic.read().unwrap()
                         );
-                        
+
 
                         if characteristic.read().unwrap().properties.indicate {
                             for connection in self.active_connections.clone() {

@@ -3,7 +3,7 @@ use esp_idf_sys::{
     esp_ble_gatts_cb_param_t_gatts_disconnect_evt_param,
 };
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone)]
 pub struct Connection {
     id: u16,
     is_slave: bool,
@@ -68,3 +68,17 @@ impl std::fmt::Display for Connection {
         )
     }
 }
+
+impl std::hash::Hash for Connection {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.remote_bda.hash(state)
+    }
+}
+
+impl std::cmp::PartialEq for Connection {
+    fn eq(&self, other: &Self) -> bool {
+        self.remote_bda == other.remote_bda
+    }
+}
+
+impl std::cmp::Eq for Connection {}
