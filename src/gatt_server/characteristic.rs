@@ -213,7 +213,7 @@ impl Characteristic {
         let value: Vec<u8> = value.into();
 
         // If the characteristi hasn't been registered yet...
-        if self.service_handle == None {
+        if self.service_handle.is_none() {
             // ...we can still change the value's maximum length.
             self.max_value_length = value.len() as u16;
         } else if value.len() > self.max_value_length as usize {
