@@ -1,8 +1,8 @@
 use esp_idf_sys::*;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum AttributeControl {
-    ResponseByApp(fn() -> Vec<u8>),
+    ResponseByApp(fn(esp_ble_gatts_cb_param_t_gatts_read_evt_param) -> Vec<u8>),
     AutomaticResponse(Vec<u8>),
 }
 

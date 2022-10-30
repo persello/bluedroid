@@ -20,3 +20,7 @@ pub use attribute_permissions::AttributePermissions;
 // Attribute control: public.
 mod attribute_control;
 pub use attribute_control::AttributeControl;
+
+// Connection: public.
+mod connection;
+pub use connection::Connection;

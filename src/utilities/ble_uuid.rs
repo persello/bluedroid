@@ -2,7 +2,7 @@ use esp_idf_sys::{
     esp_bt_uuid_t, esp_gatt_id_t, ESP_UUID_LEN_128, ESP_UUID_LEN_16, ESP_UUID_LEN_32,
 };
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone)]
 pub enum BleUuid {
     Uuid16(u16),
     Uuid32(u32),
@@ -67,6 +67,12 @@ impl BleUuid {
             }
             BleUuid::Uuid128(uuid) => *uuid,
         }
+    }
+}
+
+impl PartialEq for BleUuid {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_uuid128_array() == other.as_uuid128_array()
     }
 }
 

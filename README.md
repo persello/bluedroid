@@ -1,5 +1,10 @@
 # Bluedroid Rust wrapper
 
+![Crates.io](https://img.shields.io/crates/v/bluedroid)
+![Crates.io](https://img.shields.io/crates/d/bluedroid)
+![Crates.io](https://img.shields.io/crates/l/bluedroid)
+
+
 This is a Rust wrapper for the Bluedroid Bluetooth stack for ESP32.
 
 ## Features
@@ -19,15 +24,16 @@ This is a Rust wrapper for the Bluedroid Bluetooth stack for ESP32.
       - [x] Static
       - [x] Dynamic
       - [ ] Long
-    - [ ] Write
-      - [ ] With response
+    - [x] Write
+      - [x] With response
       - [x] Without response
       - [ ] Long
-    - [ ] Notify
-    - [ ] Indicate
+    - [x] Notify
+    - [x] Indicate
   - [x] Descriptors
     - [x] Declaration
     - [x] Read
+    - [x] Write
   - [ ] Encryption
 - [ ] GATT client
   > There are currently no plans to implement the GATT client API.
