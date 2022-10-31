@@ -13,8 +13,9 @@ pub struct Profile {
 }
 
 impl Profile {
+    #[must_use]
     pub fn new(name: &str, identifier: u16) -> Self {
-        Profile {
+        Self {
             name: Some(String::from(name)),
             services: Vec::new(),
             identifier,
@@ -22,6 +23,7 @@ impl Profile {
         }
     }
 
+    #[must_use]
     pub fn add_service<S: Into<Arc<RwLock<Service>>>>(mut self, service: S) -> Self {
         self.services.push(service.into());
         self

@@ -44,6 +44,7 @@ pub struct Characteristic {
 
 impl Characteristic {
     /// Creates a new [`Characteristic`].
+    #[must_use]
     pub fn new(
         name: &str,
         uuid: BleUuid,
@@ -90,6 +91,7 @@ impl Characteristic {
             panic!("Automatic response requires a value to be set.");
         }
 
+        #[allow(clippy::cast_possible_truncation)]
         unsafe {
             esp_nofail!(esp_ble_gatts_add_char(
                 service_handle,
@@ -213,6 +215,7 @@ impl Characteristic {
         let value: Vec<u8> = value.into();
 
         // If the characteristi hasn't been registered yet...
+        #[allow(clippy::cast_possible_truncation)]
         if self.service_handle.is_none() {
             // ...we can still change the value's maximum length.
             self.max_value_length = value.len() as u16;
@@ -231,6 +234,7 @@ impl Characteristic {
         );
 
         if let Some(handle) = self.attribute_handle {
+            #[allow(clippy::cast_possible_truncation)]
             unsafe {
                 esp_nofail!(esp_ble_gatts_set_attr_value(
                     handle,

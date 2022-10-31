@@ -1,4 +1,4 @@
-use std::ffi::c_char;
+#![allow(clippy::cognitive_complexity, clippy::too_many_lines)]
 
 use crate::gatt_server::profile::Profile;
 use crate::{
@@ -7,20 +7,7 @@ use crate::{
     utilities::{AttributeControl, BleUuid, Connection},
 };
 
-use esp_idf_sys::{
-    esp_ble_gap_config_adv_data, esp_ble_gap_set_device_name, esp_ble_gap_start_advertising,
-    esp_ble_gatts_cb_param_t, esp_ble_gatts_cb_param_t_gatts_read_evt_param,
-    esp_ble_gatts_get_attr_value, esp_ble_gatts_send_indicate, esp_ble_gatts_send_response,
-    esp_ble_gatts_start_service, esp_bt_status_t_ESP_BT_STATUS_SUCCESS, esp_gatt_if_t,
-    esp_gatt_rsp_t, esp_gatt_status_t_ESP_GATT_OK, esp_gatt_value_t, esp_gatts_cb_event_t,
-    esp_gatts_cb_event_t_ESP_GATTS_ADD_CHAR_DESCR_EVT, esp_gatts_cb_event_t_ESP_GATTS_ADD_CHAR_EVT,
-    esp_gatts_cb_event_t_ESP_GATTS_CONF_EVT, esp_gatts_cb_event_t_ESP_GATTS_CONNECT_EVT,
-    esp_gatts_cb_event_t_ESP_GATTS_CREATE_EVT, esp_gatts_cb_event_t_ESP_GATTS_DISCONNECT_EVT,
-    esp_gatts_cb_event_t_ESP_GATTS_MTU_EVT, esp_gatts_cb_event_t_ESP_GATTS_READ_EVT,
-    esp_gatts_cb_event_t_ESP_GATTS_REG_EVT, esp_gatts_cb_event_t_ESP_GATTS_RESPONSE_EVT,
-    esp_gatts_cb_event_t_ESP_GATTS_SET_ATTR_VAL_EVT, esp_gatts_cb_event_t_ESP_GATTS_START_EVT,
-    esp_gatts_cb_event_t_ESP_GATTS_WRITE_EVT, esp_nofail,
-};
+use esp_idf_sys::*;
 use log::{debug, info, warn};
 
 impl GattServer {
@@ -82,7 +69,7 @@ impl GattServer {
                     if !self.advertisement_configured {
                         unsafe {
                             esp_nofail!(esp_ble_gap_set_device_name(
-                                self.device_name.as_ptr() as *const c_char
+                                self.device_name.as_ptr().cast::<i8>()
                             ));
 
                             self.advertisement_configured = true;
@@ -142,6 +129,8 @@ impl GattServer {
                                 if let Some((_, indication)) = status && indication {
                                     debug!("Indicating {} value change to {:02X?}.", characteristic.read().unwrap(), connection.id());
                                     let mut internal_value = characteristic.write().unwrap().internal_value.clone();
+
+                                    #[allow(clippy::cast_possible_truncation)]
                                     unsafe {
                                         esp_nofail!(esp_ble_gatts_send_indicate(
                                             gatts_if,
@@ -169,6 +158,8 @@ impl GattServer {
                                 if let Some((notification, _)) = status && notification {
                                     debug!("Notifying {} value change to {}.", characteristic.read().unwrap(), connection);
                                     let mut internal_value = characteristic.write().unwrap().internal_value.clone();
+
+                                    #[allow(clippy::cast_possible_truncation)]
                                     unsafe {
                                         esp_nofail!(esp_ble_gatts_send_indicate(
                                             gatts_if,
@@ -213,10 +204,11 @@ impl GattServer {
                     event,
                     profile.read().unwrap()
                 );
+
                 profile
                     .write()
                     .unwrap()
-                    .gatts_event_handler(event, gatts_if, param)
+                    .gatts_event_handler(event, gatts_if, param);
             }
         });
     }
@@ -236,26 +228,26 @@ impl Profile {
                 let param = unsafe { (*param).reg };
 
                 // Check status
-                if param.status != esp_bt_status_t_ESP_BT_STATUS_SUCCESS {
-                    warn!("GATT profile registration failed.");
-                } else {
+                if param.status == esp_bt_status_t_ESP_BT_STATUS_SUCCESS {
                     info!(
                         "{} registered on interface {}.",
                         &self,
                         self.interface.unwrap()
                     );
                     self.register_services();
+                } else {
+                    warn!("GATT profile registration failed.");
                 }
             }
             esp_gatts_cb_event_t_ESP_GATTS_CREATE_EVT => {
                 let param = unsafe { (*param).create };
 
-                if let Some(service) = self.get_service_by_id(param.service_id.id) {
+                self.get_service_by_id(param.service_id.id).map_or_else(|| {
+                    warn!("Cannot find service with service identifier {} received in service creation event.", BleUuid::from(param.service_id.id));
+                }, |service| {
                     service.write().unwrap().handle = Some(param.service_handle);
 
-                    if param.status != esp_gatt_status_t_ESP_GATT_OK {
-                        warn!("GATT service registration failed.");
-                    } else {
+                    if param.status == esp_gatt_status_t_ESP_GATT_OK {
                         info!(
                             "GATT service {} registered on handle 0x{:04x}.",
                             service.read().unwrap(),
@@ -269,32 +261,28 @@ impl Profile {
                         }
 
                         service.write().unwrap().register_characteristics();
+                    } else {
+                        warn!("GATT service registration failed.");
                     }
-                } else {
-                    warn!("Cannot find service with service identifier {} received in service creation event.", BleUuid::from(param.service_id.id));
-                }
+                });
             }
             esp_gatts_cb_event_t_ESP_GATTS_START_EVT => {
                 let param = unsafe { (*param).start };
 
-                if let Some(service) = self.get_service(param.service_handle) {
-                    if param.status != esp_gatt_status_t_ESP_GATT_OK {
-                        warn!("GATT service {} failed to start.", service.read().unwrap());
-                    } else {
-                        debug!("GATT service {} started.", service.read().unwrap());
-                    }
-                } else {
+                self.get_service(param.service_handle).map_or_else(|| {
                     warn!("Cannot find service described by handle 0x{:04x} received in service start event.", param.service_handle);
-                }
+                }, |service| if param.status == esp_gatt_status_t_ESP_GATT_OK {
+                        debug!("GATT service {} started.", service.read().unwrap());
+                    } else {
+                        warn!("GATT service {} failed to start.", service.read().unwrap());
+                    });
             }
             esp_gatts_cb_event_t_ESP_GATTS_ADD_CHAR_EVT => {
                 let param = unsafe { (*param).add_char };
 
                 if let Some(service) = self.get_service(param.service_handle) &&
                    let Some(characteristic) = service.read().unwrap().get_characteristic_by_id(param.char_uuid) {
-                        if param.status != esp_gatt_status_t_ESP_GATT_OK {
-                            warn!("GATT characteristic registration failed.");
-                        } else {
+                        if param.status == esp_gatt_status_t_ESP_GATT_OK {
                             info!(
                                 "GATT characteristic {} registered at attribute handle 0x{:04x}.",
                                 characteristic.read().unwrap(),
@@ -302,6 +290,8 @@ impl Profile {
                             );
                             characteristic.write().unwrap().attribute_handle = Some(param.attr_handle);
                             characteristic.write().unwrap().register_descriptors();
+                        } else {
+                            warn!("GATT characteristic registration failed.");
                         }
                 } else {
                     warn!("Cannot find characteristic described by service handle 0x{:04x} and characteristic identifier {} received in characteristic creation event.", param.service_handle, BleUuid::from(param.char_uuid));
@@ -313,15 +303,15 @@ impl Profile {
                 if let Some(service) = self.get_service(param.service_handle) &&
                    let Some(descriptor) = service.read().unwrap().get_descriptor_by_id(param.descr_uuid)
                 {
-                    if param.status != esp_gatt_status_t_ESP_GATT_OK {
-                        warn!("GATT descriptor registration failed.");
-                    } else {
+                    if param.status == esp_gatt_status_t_ESP_GATT_OK {
                         info!(
                             "GATT descriptor {} registered at attribute handle 0x{:04x}.",
                             descriptor.read().unwrap(),
                             param.attr_handle
                         );
                         descriptor.write().unwrap().attribute_handle = Some(param.attr_handle);
+                    } else {
+                        warn!("GATT descriptor registration failed.");
                     }
                 } else {
                     warn!("Cannot find service described by identifier {} received in descriptor creation event.", BleUuid::from(param.descr_uuid));
@@ -330,7 +320,7 @@ impl Profile {
             esp_gatts_cb_event_t_ESP_GATTS_WRITE_EVT => {
                 let param = unsafe { (*param).write };
 
-                for service in self.services.iter() {
+                for service in &self.services {
                     service.read().unwrap().characteristics.iter().for_each(|characteristic| {
                         if characteristic.read().unwrap().attribute_handle == Some(param.handle) {
                             debug!(
@@ -370,6 +360,7 @@ impl Profile {
                                     let mut response = [0u8; 600];
                                     response[..value.len()].copy_from_slice(&value);
 
+                                    #[allow(clippy::cast_possible_truncation)]
                                     unsafe {
                                         esp_nofail!(esp_ble_gatts_send_response(
                                             gatts_if,
@@ -428,6 +419,7 @@ impl Profile {
                                                 let mut response = [0u8; 600];
                                                 response[..value.len()].copy_from_slice(&value);
 
+                                                #[allow(clippy::cast_possible_truncation)]
                                                 unsafe {
                                                     esp_nofail!(esp_ble_gatts_send_response(
                                                         gatts_if,
@@ -457,7 +449,7 @@ impl Profile {
             esp_gatts_cb_event_t_ESP_GATTS_READ_EVT => {
                 let param = unsafe { (*param).read };
 
-                for service in self.services.iter() {
+                for service in &self.services {
                     service
                         .read()
                         .unwrap()
@@ -481,6 +473,7 @@ impl Profile {
                                     let mut response = [0u8; 600];
                                     response[..value.len()].copy_from_slice(&value);
 
+                                    #[allow(clippy::cast_possible_truncation)]
                                     unsafe {
                                         esp_nofail!(esp_ble_gatts_send_response(
                                             gatts_if,
@@ -520,6 +513,7 @@ impl Profile {
                                                 let mut response = [0u8; 600];
                                                 response[..value.len()].copy_from_slice(&value);
 
+                                                #[allow(clippy::cast_possible_truncation)]
                                                 unsafe {
                                                     esp_nofail!(esp_ble_gatts_send_response(
                                                         gatts_if,
@@ -535,7 +529,7 @@ impl Profile {
                                                                 value: response,
                                                             },
                                                         })
-                                                    ))
+                                                    ));
                                                 }
                                             }
                                         }

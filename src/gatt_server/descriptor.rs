@@ -24,6 +24,7 @@ pub struct Descriptor {
 }
 
 impl Descriptor {
+    #[must_use]
     pub fn new(name: &str, uuid: BleUuid, permissions: AttributePermissions) -> Self {
         Self {
             name: Some(String::from(name)),
@@ -81,6 +82,7 @@ impl Descriptor {
         debug!("Trying to set value of {} to {:02X?}.", self, self.value);
 
         if let Some(handle) = self.attribute_handle {
+            #[allow(clippy::cast_possible_truncation)]
             unsafe {
                 esp_nofail!(esp_ble_gatts_set_attr_value(
                     handle,
@@ -103,6 +105,7 @@ impl Descriptor {
             self, service_handle
         );
 
+        #[allow(clippy::cast_possible_truncation)]
         unsafe {
             esp_nofail!(esp_ble_gatts_add_char_descr(
                 service_handle,

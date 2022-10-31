@@ -8,6 +8,7 @@ pub struct AttributePermissions {
 }
 
 impl AttributePermissions {
+    #[must_use]
     pub const fn read() -> Self {
         Self {
             read_access: true,
@@ -16,6 +17,7 @@ impl AttributePermissions {
         }
     }
 
+    #[must_use]
     pub const fn write() -> Self {
         Self {
             read_access: false,
@@ -24,6 +26,7 @@ impl AttributePermissions {
         }
     }
 
+    #[must_use]
     pub const fn read_write() -> Self {
         Self {
             read_access: true,
@@ -32,6 +35,7 @@ impl AttributePermissions {
         }
     }
 
+    #[must_use]
     pub const fn read_encrypted() -> Self {
         Self {
             read_access: true,
@@ -40,6 +44,7 @@ impl AttributePermissions {
         }
     }
 
+    #[must_use]
     pub const fn write_encrypted() -> Self {
         Self {
             read_access: false,
@@ -48,6 +53,7 @@ impl AttributePermissions {
         }
     }
 
+    #[must_use]
     pub const fn read_write_encrypted() -> Self {
         Self {
             read_access: true,
@@ -58,6 +64,7 @@ impl AttributePermissions {
 }
 
 impl From<AttributePermissions> for esp_gatt_perm_t {
+    #[allow(clippy::cast_possible_truncation)]
     fn from(permissions: AttributePermissions) -> Self {
         let result = match (
             permissions.read_access,

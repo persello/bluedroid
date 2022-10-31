@@ -13,23 +13,39 @@ use log::debug;
 
 lazy_static! {
     static ref STORAGE: Mutex<EspNvsStorage> = Mutex::new(
-        EspNvsStorage::new_default(Arc::new(EspDefaultNvs::new().unwrap()), "ble", true).unwrap()
+        EspNvsStorage::new_default(
+            Arc::new(
+                EspDefaultNvs::new()
+                    .expect("Cannot initialise the default NVS. Did you declare an NVS partition?")
+            ),
+            "ble",
+            true
+        )
+        .expect("Cannot create a new NVS storage. Did you declare an NVS partition?")
     );
 }
 
 impl Descriptor {
     pub fn user_description<S: AsRef<str>>(description: S) -> Self {
-        Descriptor::new(
+        Self::new(
             "User Description",
             BleUuid::from_uuid16(0x2901),
             AttributePermissions::read(),
         )
         .set_value(description.as_ref().as_bytes().to_vec())
-        .to_owned()
+        .clone()
     }
 
+    /// Creates a CCCD.
+    ///
+    /// The contents of the CCCD are stored in NVS and persisted across reboots.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the NVS is not configured.
+    #[must_use]
     pub fn cccd() -> Self {
-        Descriptor::new(
+        Self::new(
             "Client Characteristic Configuration",
             BleUuid::from_uuid16(0x2902),
             AttributePermissions::read_write(),
@@ -58,13 +74,19 @@ impl Descriptor {
 
             // Prepare buffer and read correct CCCD value from non-volatile storage.
             let mut buf: [u8; 1] = [0; 1];
-            if let Some(value) = storage.get_raw(&key, &mut buf).unwrap() {
-                debug!("Read CCCD value: {:?} for key {}.", value, key);
-                value.0.to_vec()
-            } else {
-                debug!("No CCCD value found for key {}.", key);
-                vec![0, 0]
-            }
+            storage
+                .get_raw(&key, &mut buf)
+                .expect("Cannot get raw value from the NVS. Did you declare an NVS partition?")
+                .map_or_else(
+                    || {
+                        debug!("No CCCD value found for key {}.", key);
+                        vec![0, 0]
+                    },
+                    |value| {
+                        debug!("Read CCCD value: {:?} for key {}.", value, key);
+                        value.0.to_vec()
+                    },
+                )
         })
         .on_write(|value, param| {
             let mut storage = STORAGE.lock().unwrap();
@@ -82,8 +104,10 @@ impl Descriptor {
             debug!("Write CCCD value: {:?} at key {}", value, key);
 
             // Write CCCD value to non-volatile storage.
-            storage.put_raw(&key, &value).unwrap();
+            storage
+                .put_raw(&key, &value)
+                .expect("Cannot put raw value to the NVS. Did you declare an NVS partition?");
         })
-        .to_owned()
+        .clone()
     }
 }

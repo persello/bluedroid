@@ -19,8 +19,9 @@ pub struct Service {
 }
 
 impl Service {
-    pub fn new(name: &str, uuid: BleUuid, primary: bool) -> Service {
-        Service {
+    #[must_use]
+    pub fn new(name: &str, uuid: BleUuid, primary: bool) -> Self {
+        Self {
             name: Some(String::from(name)),
             uuid,
             characteristics: Vec::new(),

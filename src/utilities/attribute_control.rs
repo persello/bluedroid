@@ -8,6 +8,8 @@ pub enum AttributeControl {
 
 impl From<AttributeControl> for esp_attr_control_t {
     fn from(control: AttributeControl) -> Self {
+        
+        #[allow(clippy::cast_possible_truncation)]
         let result: u8 = match control {
             AttributeControl::AutomaticResponse(_) => ESP_GATT_AUTO_RSP as u8,
             AttributeControl::ResponseByApp(_) => ESP_GATT_RSP_BY_APP as u8,

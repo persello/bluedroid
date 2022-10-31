@@ -2,6 +2,7 @@ use esp_idf_sys::*;
 use log::warn;
 
 #[derive(Clone, Copy, Debug, Default)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct CharacteristicProperties {
     broadcast: bool,
     pub(crate) read: bool,
@@ -14,30 +15,36 @@ pub struct CharacteristicProperties {
 }
 
 impl CharacteristicProperties {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn broadcast(mut self) -> Self {
+    #[must_use]
+    pub const fn broadcast(mut self) -> Self {
         self.broadcast = true;
         self
     }
 
-    pub fn read(mut self) -> Self {
+    #[must_use]
+    pub const fn read(mut self) -> Self {
         self.read = true;
         self
     }
 
-    pub fn write_without_response(mut self) -> Self {
+    #[must_use]
+    pub const fn write_without_response(mut self) -> Self {
         self.write_without_response = true;
         self
     }
 
-    pub fn write(mut self) -> Self {
+    #[must_use]
+    pub const fn write(mut self) -> Self {
         self.write = true;
         self
     }
 
+    #[must_use]
     pub fn notify(mut self) -> Self {
         if self.indicate {
             warn!("Cannot set notify and indicate at the same time. Ignoring notify.");
@@ -48,6 +55,7 @@ impl CharacteristicProperties {
         self
     }
 
+    #[must_use]
     pub fn indicate(mut self) -> Self {
         if self.notify {
             warn!("Cannot set notify and indicate at the same time. Ignoring indicate.");
@@ -58,18 +66,21 @@ impl CharacteristicProperties {
         self
     }
 
-    pub fn authenticated_signed_writes(mut self) -> Self {
+    #[must_use]
+    pub const fn authenticated_signed_writes(mut self) -> Self {
         self.authenticated_signed_writes = true;
         self
     }
 
-    pub fn extended_properties(mut self) -> Self {
+    #[must_use]
+    pub const fn extended_properties(mut self) -> Self {
         self.extended_properties = true;
         self
     }
 }
 
 impl From<CharacteristicProperties> for esp_gatt_char_prop_t {
+    #[allow(clippy::cast_possible_truncation)]
     fn from(properties: CharacteristicProperties) -> Self {
         let mut result = 0;
         if properties.broadcast {

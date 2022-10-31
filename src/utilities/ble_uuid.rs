@@ -10,18 +10,23 @@ pub enum BleUuid {
 }
 
 impl BleUuid {
-    pub fn from_uuid16(uuid: u16) -> Self {
-        BleUuid::Uuid16(uuid)
+    #[must_use] pub const fn from_uuid16(uuid: u16) -> Self {
+        Self::Uuid16(uuid)
     }
 
-    pub fn from_uuid32(uuid: u32) -> Self {
-        BleUuid::Uuid32(uuid)
+    #[must_use] pub const fn from_uuid32(uuid: u32) -> Self {
+        Self::Uuid32(uuid)
     }
 
-    pub fn from_uuid128(uuid: [u8; 16]) -> Self {
-        BleUuid::Uuid128(uuid)
+    #[must_use] pub const fn from_uuid128(uuid: [u8; 16]) -> Self {
+        Self::Uuid128(uuid)
     }
 
+    /// Creates a new [`BleUuid`] from a formatted string.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the string contains invalid characters.
     pub fn from_uuid128_string<S: AsRef<str>>(uuid: S) -> Self {
         // Accepts the following formats:
         // "00000000-0000-0000-0000-000000000000"
@@ -37,17 +42,17 @@ impl BleUuid {
             uuid_bytes[i] = u8::from_str_radix(std::str::from_utf8(byte).unwrap(), 16).unwrap();
         }
 
-        BleUuid::Uuid128(uuid_bytes)
+        Self::Uuid128(uuid_bytes)
     }
 
-    pub fn as_uuid128_array(&self) -> [u8; 16] {
+    #[must_use] pub fn as_uuid128_array(&self) -> [u8; 16] {
         let base_ble_uuid = [
             0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00,
         ];
 
         match self {
-            BleUuid::Uuid16(uuid) => {
+            Self::Uuid16(uuid) => {
                 let mut uuid128 = base_ble_uuid;
 
                 let mut uuid_as_bytes: [u8; 2] = uuid.to_be_bytes();
@@ -56,7 +61,7 @@ impl BleUuid {
                 uuid128[12..=13].copy_from_slice(&uuid_as_bytes[..]);
                 uuid128
             }
-            BleUuid::Uuid32(uuid) => {
+            Self::Uuid32(uuid) => {
                 let mut uuid128 = base_ble_uuid;
 
                 let mut uuid_as_bytes: [u8; 4] = uuid.to_be_bytes();
@@ -65,7 +70,7 @@ impl BleUuid {
                 uuid128[12..=15].copy_from_slice(&uuid_as_bytes[..]);
                 uuid128
             }
-            BleUuid::Uuid128(uuid) => *uuid,
+            Self::Uuid128(uuid) => *uuid,
         }
     }
 }
@@ -78,7 +83,7 @@ impl PartialEq for BleUuid {
 
 impl From<BleUuid> for esp_gatt_id_t {
     fn from(val: BleUuid) -> Self {
-        esp_gatt_id_t {
+        Self {
             uuid: val.into(),
             inst_id: 0x00,
         }
@@ -86,8 +91,9 @@ impl From<BleUuid> for esp_gatt_id_t {
 }
 
 impl From<BleUuid> for esp_bt_uuid_t {
+    #[allow(clippy::cast_possible_truncation)]
     fn from(val: BleUuid) -> Self {
-        let mut result: esp_bt_uuid_t = esp_bt_uuid_t::default();
+        let mut result: Self = Self::default();
 
         match val {
             BleUuid::Uuid16(uuid) => {
@@ -112,10 +118,11 @@ impl From<esp_bt_uuid_t> for BleUuid {
     fn from(uuid: esp_bt_uuid_t) -> Self {
         unsafe {
             match uuid.len {
-                2 => BleUuid::Uuid16(uuid.uuid.uuid16),
-                4 => BleUuid::Uuid32(uuid.uuid.uuid32),
-                16 => BleUuid::Uuid128(uuid.uuid.uuid128),
-                _ => panic!("Invalid UUID length."),
+                2 => Self::Uuid16(uuid.uuid.uuid16),
+                4 => Self::Uuid32(uuid.uuid.uuid32),
+                16 => Self::Uuid128(uuid.uuid.uuid128),
+                // Never happens
+                _ => unreachable!("Invalid UUID length"),
             }
         }
     }
@@ -130,15 +137,15 @@ impl From<esp_gatt_id_t> for BleUuid {
 impl std::fmt::Display for BleUuid {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BleUuid::Uuid16(uuid) => write!(f, "0x{:04x}", uuid),
-            BleUuid::Uuid32(uuid) => write!(f, "0x{:08x}", uuid),
-            BleUuid::Uuid128(uuid) => {
+            Self::Uuid16(uuid) => write!(f, "0x{:04x}", uuid),
+            Self::Uuid32(uuid) => write!(f, "0x{:08x}", uuid),
+            Self::Uuid128(uuid) => {
                 let mut uuid = *uuid;
                 uuid.reverse();
 
                 let mut uuid_str = String::new();
 
-                for byte in uuid.iter() {
+                for byte in &uuid {
                     uuid_str.push_str(&format!("{:02x}", byte));
                 }
                 uuid_str.insert(8, '-');

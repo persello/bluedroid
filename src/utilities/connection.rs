@@ -11,7 +11,7 @@ pub struct Connection {
 }
 
 impl Connection {
-    pub fn new(id: u16, is_slave: bool, remote_bda: [u8; 6]) -> Self {
+    #[must_use] pub const fn new(id: u16, is_slave: bool, remote_bda: [u8; 6]) -> Self {
         Self {
             id,
             is_slave,
@@ -19,15 +19,15 @@ impl Connection {
         }
     }
 
-    pub fn id(&self) -> u16 {
+    #[must_use] pub const fn id(&self) -> u16 {
         self.id
     }
 
-    pub fn is_slave(&self) -> bool {
+    #[must_use] pub const fn is_slave(&self) -> bool {
         self.is_slave
     }
 
-    pub fn remote_bda(&self) -> [u8; 6] {
+    #[must_use] pub const fn remote_bda(&self) -> [u8; 6] {
         self.remote_bda
     }
 }
@@ -71,7 +71,7 @@ impl std::fmt::Display for Connection {
 
 impl std::hash::Hash for Connection {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.remote_bda.hash(state)
+        self.remote_bda.hash(state);
     }
 }
 

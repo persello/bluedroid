@@ -303,6 +303,6 @@ pub enum Appearance {
 
 impl From<Appearance> for i32 {
     fn from(appearance: Appearance) -> Self {
-        appearance as i32
+        appearance as Self
     }
 }

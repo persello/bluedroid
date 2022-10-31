@@ -1,3 +1,5 @@
+#![allow(clippy::cast_possible_truncation)]
+
 use std::{
     collections::HashSet,
     sync::{Arc, Mutex, RwLock},
@@ -50,6 +52,7 @@ mod custom_attributes;
 // Event handler.
 mod gap_event_handler;
 mod gatts_event_handler;
+
 
 lazy_static! {
     pub static ref GLOBAL_GATT_SERVER: Mutex<Option<GattServer>> = Mutex::new(Some(GattServer {
@@ -114,6 +117,11 @@ pub struct GattServer {
 unsafe impl Send for GattServer {}
 
 impl GattServer {
+    /// Starts a [`GattServer`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if a profile's lock is poisoned.
     pub fn start(&mut self) {
         if self.started {
             warn!("GATT server already started.");
@@ -121,12 +129,12 @@ impl GattServer {
         }
 
         self.started = true;
-        self.initialise_ble_stack();
+        Self::initialise_ble_stack();
 
         // Registration of profiles, services, characteristics and descriptors.
         self.profiles.iter().for_each(|profile| {
             profile.write().unwrap().register_self();
-        })
+        });
     }
 
     pub fn device_name<S: Into<String>>(&mut self, name: S) -> &mut Self {
@@ -175,9 +183,9 @@ impl GattServer {
         self
     }
 
-    pub fn advertise_service(&mut self, service: Service) -> &mut Self {
+    pub fn advertise_service(&mut self, service: &Service) -> &mut Self {
         self.scan_response_data.p_service_uuid =
-            leaky_box_raw!(service.uuid.as_uuid128_array()) as *mut u8;
+            leaky_box_raw!(service.uuid.as_uuid128_array()).cast::<u8>();
         self.scan_response_data.service_uuid_len = service.uuid.as_uuid128_array().len() as u16;
 
         self
@@ -190,7 +198,7 @@ impl GattServer {
             .cloned()
     }
 
-    fn initialise_ble_stack(&mut self) {
+    fn initialise_ble_stack() {
         info!("Initialising BLE stack.");
 
         // NVS initialisation.
@@ -203,6 +211,7 @@ impl GattServer {
             }
         }
 
+        #[allow(clippy::cast_possible_truncation)]
         let default_controller_configuration = esp_bt_controller_config_t {
             magic: ESP_BT_CTRL_CONFIG_MAGIC_VAL,
             version: ESP_BT_CTRL_CONFIG_VERSION,

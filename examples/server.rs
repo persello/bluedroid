@@ -131,7 +131,7 @@ fn main() {
         .add_profiles(&profiles)
         .device_name("ESP32-GATT-Server")
         .appearance(bluedroid::utilities::Appearance::WristWornPulseOximeter)
-        .advertise_service(Service::new(
+        .advertise_service(&Service::new(
             "Custom Service",
             BleUuid::from_uuid128_string("FAFAFAFA-FAFA-FAFA-FAFA-FAFAFAFAFAFA"),
             true,
