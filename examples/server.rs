@@ -1,18 +1,15 @@
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::RwLock;
 
 use bluedroid::{
-    gatt_server::{Characteristic, Descriptor, Profile, Service, GLOBAL_GATT_SERVER},
+    gatt_server::{Characteristic, Profile, Service, GLOBAL_GATT_SERVER},
     utilities::{AttributePermissions, BleUuid, CharacteristicProperties},
 };
-use embedded_hal::delay::blocking::DelayUs;
+
 use lazy_static::lazy_static;
 use log::info;
 
 lazy_static! {
-    // Keep track of a counter value.
-    static ref COUNTER: Mutex<u8> = Mutex::new(0);
-    // Keep track of a writable value.
-    static ref WRITABLE: Mutex<u8> = Mutex::new(0);
+    static ref VALUE: RwLock<Vec<u8>> = RwLock::new("Initial value".as_bytes().to_vec());
 }
 
 fn main() {
@@ -21,135 +18,86 @@ fn main() {
 
     info!("Logger initialised.");
 
-    let manufacturer_name_characteristic = Arc::new(RwLock::new(
-        Characteristic::new(
-            "Manufacturer Name",
-            BleUuid::from_uuid16(0x2A29),
-            AttributePermissions::read(),
-            CharacteristicProperties::new().read(),
-        )
-        .set_value("Espressif".as_bytes())
-        .to_owned(),
-    ));
+    // A static characteristic.
+    let static_characteristic = Characteristic::new(BleUuid::from_uuid128_string(
+        "d4e0e0d0-1a2b-11e9-ab14-d663bd873d93",
+    ))
+    .name("Static Characteristic")
+    .permissions(AttributePermissions::new().read())
+    .max_value_length(20)
+    .properties(CharacteristicProperties::new().read())
+    .show_name()
+    .set_value("Hello, world!".as_bytes().to_vec())
+    .build();
 
-    let model_number_characteristic = Arc::new(RwLock::new(
-        Characteristic::new(
-            "Model Number",
-            BleUuid::from_uuid16(0x2A24),
-            AttributePermissions::read(),
-            CharacteristicProperties::new().read(),
-        )
-        .set_value("ESP32".as_bytes())
-        .to_owned(),
-    ));
+    // A characteristic that notifies every second.
+    let notifying_characteristic = Characteristic::new(BleUuid::from_uuid128_string(
+        "a3c87500-8ed3-4bdf-8a39-a01bebede295",
+    ))
+    .name("Notifying Characteristic")
+    .permissions(AttributePermissions::new().read())
+    .properties(CharacteristicProperties::new().read().notify())
+    .max_value_length(20)
+    .show_name()
+    .set_value("Initial value.".as_bytes().to_vec())
+    .build();
 
-    let serial_number_characteristic = Arc::new(RwLock::new(Characteristic::new(
-        "Serial Number",
-        BleUuid::from_uuid16(0x2A25),
-        AttributePermissions::read(),
-        CharacteristicProperties::new().read(),
-    )));
+    // A writable characteristic.
+    let writable_characteristic = Characteristic::new(BleUuid::from_uuid128_string(
+        "3c9a3f00-8ed3-4bdf-8a39-a01bebede295",
+    ))
+    .name("Writable Characteristic")
+    .permissions(AttributePermissions::new().read().write())
+    .properties(CharacteristicProperties::new().read().write())
+    .on_read(|_param| {
+        info!("Read from writable characteristic.");
+        return VALUE.read().unwrap().clone();
+    })
+    .on_write(|value, _param| {
+        info!("Wrote to writable characteristic: {:?}", value);
+        *VALUE.write().unwrap() = value;
+    })
+    .show_name()
+    .build();
 
-    let device_information_service = Arc::new(RwLock::new(
-        Service::new("Device Information", BleUuid::from_uuid16(0x180A), true)
-            .add_characteristic(manufacturer_name_characteristic)
-            .add_characteristic(model_number_characteristic)
-            .add_characteristic(serial_number_characteristic)
-            .to_owned(),
-    ));
+    let service = Service::new(BleUuid::from_uuid128_string(
+        "fafafafa-fafa-fafa-fafa-fafafafafafa", // far better, run run run run, run run run away...
+    ))
+    .name("Example Service")
+    .primary()
+    .characteristic(&static_characteristic)
+    .characteristic(&notifying_characteristic)
+    .characteristic(&writable_characteristic)
+    .build();
 
-    let main_profile = Profile::new("Main Profile", 0xAA).add_service(device_information_service);
-
-    let heart_rate_characteristic = Arc::new(RwLock::new(
-        Characteristic::new(
-            "Heart Rate Measurement",
-            BleUuid::from_uuid16(0x2A37),
-            AttributePermissions::read(),
-            CharacteristicProperties::new().read().notify(),
-        )
-        .set_value(0u32.to_le_bytes())
-        .show_name_as_descriptor()
-        .add_descriptor(Arc::new(RwLock::new(Descriptor::cccd())))
-        .to_owned(),
-    ));
-
-    let heart_rate_service = Arc::new(RwLock::new(
-        Service::new("Heart Rate", BleUuid::from_uuid16(0x180D), true)
-            .add_characteristic(heart_rate_characteristic.clone())
-            .to_owned(),
-    ));
-
-    let secondary_profile = Profile::new("Secondary Profile", 0xBB).add_service(heart_rate_service);
-
-    let custom_characteristic = Arc::new(RwLock::new(
-        Characteristic::new(
-            "Custom Characteristic",
-            BleUuid::from_uuid128_string("FBFBFBFB-FBFB-FBFB-FBFB-FBFBFBFBFBFB"),
-            AttributePermissions::read_write(),
-            CharacteristicProperties::new().read().write(),
-        )
-        .on_read(|_param| {
-            info!("Custom Characteristic read callback called.");
-            let writable = WRITABLE.lock().unwrap();
-            format!("Custom Characteristic read, value is {}!", writable)
-                .as_bytes()
-                .to_vec()
-        })
-        .on_write(|data, _param| {
-            info!("Custom Characteristic write callback called.");
-            let mut writable = WRITABLE.lock().unwrap();
-            *writable = data[0];
-            info!("Custom Characteristic write, value is now {}!", writable);
-        })
-        .show_name_as_descriptor()
-        .to_owned(),
-    ));
-
-    let custom_service = Arc::new(RwLock::new(
-        Service::new(
-            "Custom Service",
-            BleUuid::from_uuid128_string("FAFAFAFA-FAFA-FAFA-FAFA-FAFAFAFAFAFA"), // FAR BETTER, RUN RUN RUN RUN RUN RUN RUN AWAY...
-            true,
-        )
-        .add_characteristic(custom_characteristic)
-        .to_owned(),
-    ));
-
-    let custom_profile = Profile::new("Custom Profile", 0xCC).add_service(custom_service);
-
-    let profiles = [
-        Arc::new(RwLock::new(main_profile)),
-        Arc::new(RwLock::new(secondary_profile)),
-        Arc::new(RwLock::new(custom_profile)),
-    ];
+    let profile = Profile::new(0x0001)
+        .name("Default Profile")
+        .service(&service)
+        .build();
 
     GLOBAL_GATT_SERVER
         .lock()
         .unwrap()
-        .as_mut()
-        .unwrap()
-        .add_profiles(&profiles)
+        .profile(profile)
         .device_name("ESP32-GATT-Server")
         .appearance(bluedroid::utilities::Appearance::WristWornPulseOximeter)
-        .advertise_service(&Service::new(
-            "Custom Service",
-            BleUuid::from_uuid128_string("FAFAFAFA-FAFA-FAFA-FAFA-FAFAFAFAFAFA"),
-            true,
-        ))
+        .advertise_service(&service)
         .start();
 
-    let mut val: u32 = 0;
-    std::thread::spawn(move || loop {
-        esp_idf_hal::delay::FreeRtos.delay_ms(10).unwrap();
-        heart_rate_characteristic
-            .write()
-            .unwrap()
-            .set_value(val.to_le_bytes());
-        val += 1;
+    std::thread::spawn(move || {
+        let mut counter = 0;
+        loop {
+            counter += 1;
+            notifying_characteristic
+                .write()
+                .unwrap()
+                .set_value(format!("Counter: {}", counter).as_bytes().to_vec());
+            std::thread::sleep(std::time::Duration::from_secs(1));
+        }
     });
 
     loop {
-        // info!("Main loop.");
-        esp_idf_hal::delay::FreeRtos.delay_ms(1000).unwrap();
+        info!("Main loop.");
+        std::thread::sleep(std::time::Duration::from_secs(10));
     }
 }

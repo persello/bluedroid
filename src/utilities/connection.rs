@@ -4,32 +4,10 @@ use esp_idf_sys::{
 };
 
 #[derive(Debug, Copy, Clone)]
-pub struct Connection {
-    id: u16,
-    is_slave: bool,
-    remote_bda: [u8; 6],
-}
-
-impl Connection {
-    #[must_use] pub const fn new(id: u16, is_slave: bool, remote_bda: [u8; 6]) -> Self {
-        Self {
-            id,
-            is_slave,
-            remote_bda,
-        }
-    }
-
-    #[must_use] pub const fn id(&self) -> u16 {
-        self.id
-    }
-
-    #[must_use] pub const fn is_slave(&self) -> bool {
-        self.is_slave
-    }
-
-    #[must_use] pub const fn remote_bda(&self) -> [u8; 6] {
-        self.remote_bda
-    }
+pub(crate) struct Connection {
+    pub(crate) id: u16,
+    pub(crate) is_slave: bool,
+    pub(crate) remote_bda: [u8; 6],
 }
 
 impl From<esp_ble_gatts_cb_param_t_gatts_connect_evt_param> for Connection {

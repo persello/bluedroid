@@ -1,3 +1,8 @@
+#![allow(missing_docs)]
+
+/// A list of standard appearance values.
+///
+/// This list was copied from the Bluetooth SIG website.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Appearance {
     GenericUnknown = 0x0000,

@@ -1,65 +1,42 @@
 use esp_idf_sys::*;
 
+/// Represents an attribute's access permissions.
+///
+/// This struct is used to set the permissions of a [`Characteristic`] or a [`Descriptor`].
+/// It can represent read and write permissions, and encryption requirements.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AttributePermissions {
-    pub read_access: bool,
-    pub write_access: bool,
-    pub encryption_required: bool,
+    pub(crate) read_access: bool,
+    pub(crate) write_access: bool,
+    pub(crate) encryption_required: bool,
 }
 
 impl AttributePermissions {
+    /// Creates a new [`AttributePermissions`].
     #[must_use]
-    pub const fn read() -> Self {
-        Self {
-            read_access: true,
-            write_access: false,
-            encryption_required: false,
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
+    /// Sets the read access of the [`AttributePermissions`].
     #[must_use]
-    pub const fn write() -> Self {
-        Self {
-            read_access: false,
-            write_access: true,
-            encryption_required: false,
-        }
+    pub const fn read(mut self) -> Self {
+        self.read_access = true;
+        self
     }
 
+    /// Sets the write access of the [`AttributePermissions`].
     #[must_use]
-    pub const fn read_write() -> Self {
-        Self {
-            read_access: true,
-            write_access: true,
-            encryption_required: false,
-        }
+    pub const fn write(mut self) -> Self {
+        self.write_access = true;
+        self
     }
 
+    /// Sets the encryption requirement of the [`AttributePermissions`].
     #[must_use]
-    pub const fn read_encrypted() -> Self {
-        Self {
-            read_access: true,
-            write_access: false,
-            encryption_required: true,
-        }
-    }
-
-    #[must_use]
-    pub const fn write_encrypted() -> Self {
-        Self {
-            read_access: false,
-            write_access: true,
-            encryption_required: true,
-        }
-    }
-
-    #[must_use]
-    pub const fn read_write_encrypted() -> Self {
-        Self {
-            read_access: true,
-            write_access: true,
-            encryption_required: true,
-        }
+    pub const fn encrypted(mut self) -> Self {
+        self.encryption_required = true;
+        self
     }
 }
 

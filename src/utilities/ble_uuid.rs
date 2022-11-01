@@ -2,23 +2,33 @@ use esp_idf_sys::{
     esp_bt_uuid_t, esp_gatt_id_t, ESP_UUID_LEN_128, ESP_UUID_LEN_16, ESP_UUID_LEN_32,
 };
 
+/// A Bluetooth UUID.
 #[derive(Copy, Clone)]
 pub enum BleUuid {
+    /// A 16-bit UUID.
     Uuid16(u16),
+    /// A 32-bit UUID.
     Uuid32(u32),
+    /// A 128-bit UUID.
     Uuid128([u8; 16]),
 }
 
 impl BleUuid {
-    #[must_use] pub const fn from_uuid16(uuid: u16) -> Self {
+    /// Creates a new [`BleUuid`] from a 16-bit integer.
+    #[must_use]
+    pub const fn from_uuid16(uuid: u16) -> Self {
         Self::Uuid16(uuid)
     }
 
-    #[must_use] pub const fn from_uuid32(uuid: u32) -> Self {
+    /// Creates a new [`BleUuid`] from a 32-bit integer.
+    #[must_use]
+    pub const fn from_uuid32(uuid: u32) -> Self {
         Self::Uuid32(uuid)
     }
 
-    #[must_use] pub const fn from_uuid128(uuid: [u8; 16]) -> Self {
+    /// Creates a new [`BleUuid`] from a 16 byte array.
+    #[must_use]
+    pub const fn from_uuid128(uuid: [u8; 16]) -> Self {
         Self::Uuid128(uuid)
     }
 
@@ -42,10 +52,12 @@ impl BleUuid {
             uuid_bytes[i] = u8::from_str_radix(std::str::from_utf8(byte).unwrap(), 16).unwrap();
         }
 
+        uuid_bytes.reverse();
         Self::Uuid128(uuid_bytes)
     }
 
-    #[must_use] pub fn as_uuid128_array(&self) -> [u8; 16] {
+    #[must_use]
+    pub(crate) fn as_uuid128_array(&self) -> [u8; 16] {
         let base_ble_uuid = [
             0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00,
@@ -151,6 +163,7 @@ impl std::fmt::Display for BleUuid {
                 uuid_str.insert(8, '-');
                 uuid_str.insert(13, '-');
                 uuid_str.insert(18, '-');
+                uuid_str.insert(23, '-');
 
                 write!(f, "{}", uuid_str)
             }

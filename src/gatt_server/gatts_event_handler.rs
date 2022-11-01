@@ -107,7 +107,7 @@ impl GattServer {
 
                 if let Some(profile) = self.get_profile(gatts_if) &&
                    let Some(service) = profile.read().unwrap().get_service(param.srvc_handle) &&
-                   let Some(characteristic) = service.read().unwrap().get_characteristic(param.attr_handle) {
+                   let Some(characteristic) = service.read().unwrap().get_characteristic_by_handle(param.attr_handle) {
                         debug!(
                             "Received set attribute value event for characteristic {}.",
                             characteristic.read().unwrap()
@@ -118,8 +118,8 @@ impl GattServer {
                             for connection in self.active_connections.clone() {
 
                                 let simulated_read_param = esp_ble_gatts_cb_param_t_gatts_read_evt_param {
-                                    bda: connection.remote_bda(),
-                                    conn_id: connection.id(),
+                                    bda: connection.remote_bda,
+                                    conn_id: connection.id,
                                     handle: characteristic.read().unwrap().descriptors.iter().find(|desc| {desc.read().unwrap().uuid == BleUuid::Uuid16(0x2902)}).unwrap().read().unwrap().attribute_handle.unwrap(),
                                     ..Default::default()
                                 };
@@ -127,14 +127,14 @@ impl GattServer {
                                 let status = characteristic.read().unwrap().get_cccd_status(simulated_read_param);
 
                                 if let Some((_, indication)) = status && indication {
-                                    debug!("Indicating {} value change to {:02X?}.", characteristic.read().unwrap(), connection.id());
+                                    debug!("Indicating {} value change to {:02X?}.", characteristic.read().unwrap(), connection.id);
                                     let mut internal_value = characteristic.write().unwrap().internal_value.clone();
 
                                     #[allow(clippy::cast_possible_truncation)]
                                     unsafe {
                                         esp_nofail!(esp_ble_gatts_send_indicate(
                                             gatts_if,
-                                            connection.id(),
+                                            connection.id,
                                             param.attr_handle,
                                             internal_value.len() as u16,
                                             internal_value.as_mut_slice().as_mut_ptr(),
@@ -147,8 +147,8 @@ impl GattServer {
                             for connection in self.active_connections.clone() {
 
                                 let simulated_read_param = esp_ble_gatts_cb_param_t_gatts_read_evt_param {
-                                    bda: connection.remote_bda(),
-                                    conn_id: connection.id(),
+                                    bda: connection.remote_bda,
+                                    conn_id: connection.id,
                                     handle: characteristic.read().unwrap().descriptors.iter().find(|desc| {desc.read().unwrap().uuid == BleUuid::Uuid16(0x2902)}).unwrap().read().unwrap().attribute_handle.unwrap(),
                                     ..Default::default()
                                 };
@@ -163,7 +163,7 @@ impl GattServer {
                                     unsafe {
                                         esp_nofail!(esp_ble_gatts_send_indicate(
                                             gatts_if,
-                                            connection.id(),
+                                            connection.id,
                                             param.attr_handle,
                                             internal_value.len() as u16,
                                             internal_value.as_mut_slice().as_mut_ptr(),
@@ -288,8 +288,11 @@ impl Profile {
                                 characteristic.read().unwrap(),
                                 param.attr_handle
                             );
-                            characteristic.write().unwrap().attribute_handle = Some(param.attr_handle);
+
+                            // We register the characteristic's descriptors before assigning the attribute handle to the characteristic.
+                            // This way, we can use the attribute handle to detect when a characteristic's registration process is finished.
                             characteristic.write().unwrap().register_descriptors();
+                            characteristic.write().unwrap().attribute_handle = Some(param.attr_handle);
                         } else {
                             warn!("GATT characteristic registration failed.");
                         }
