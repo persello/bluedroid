@@ -3,6 +3,7 @@ use crate::{
     leaky_box_raw,
     utilities::{AttributeControl, AttributePermissions, BleUuid, CharacteristicProperties},
 };
+
 use esp_idf_sys::{
     esp_attr_control_t, esp_attr_value_t, esp_ble_gatts_add_char,
     esp_ble_gatts_cb_param_t_gatts_read_evt_param, esp_ble_gatts_cb_param_t_gatts_write_evt_param,
@@ -14,6 +15,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+/// Represents a GATT characteristic.
 #[derive(Debug, Clone)]
 pub struct Characteristic {
     /// The name of the characteristic, for debugging purposes.
@@ -44,22 +46,18 @@ pub struct Characteristic {
 
 impl Characteristic {
     /// Creates a new [`Characteristic`].
-    pub fn new(
-        name: &str,
-        uuid: BleUuid,
-        permissions: AttributePermissions,
-        properties: CharacteristicProperties,
-    ) -> Self {
+    #[must_use]
+    pub fn new(uuid: BleUuid) -> Self {
         Self {
-            name: Some(String::from(name)),
+            name: None,
             uuid,
             internal_value: vec![0],
             write_callback: None,
             descriptors: Vec::new(),
             attribute_handle: None,
             service_handle: None,
-            permissions,
-            properties,
+            permissions: AttributePermissions::default(),
+            properties: CharacteristicProperties::default(),
             control: AttributeControl::AutomaticResponse(vec![0]),
             internal_control: AttributeControl::AutomaticResponse(vec![0]).into(),
             max_value_length: 8,
@@ -67,67 +65,35 @@ impl Characteristic {
     }
 
     /// Adds a [`Descriptor`] to the [`Characteristic`].
-    pub fn add_descriptor<D: Into<Arc<RwLock<Descriptor>>>>(&mut self, descriptor: D) -> &mut Self {
-        self.descriptors.push(descriptor.into());
+    pub fn descriptor(&mut self, descriptor: &Arc<RwLock<Descriptor>>) -> &mut Self {
+        self.descriptors.push(descriptor.clone());
+        self
+    }
+
+    /// Sets the name of the [`Characteristic`].
+    ///
+    /// This name is only used for debugging purposes.
+    pub fn name<S: Into<String>>(&mut self, name: S) -> &mut Self {
+        self.name = Some(name.into());
+        self
+    }
+
+    /// Sets the access permissions for this [`Characteristic`].
+    pub fn permissions(&mut self, permissions: AttributePermissions) -> &mut Self {
+        self.permissions = permissions;
+        self
+    }
+
+    /// Sets the properties for this [`Characteristic`].
+    pub fn properties(&mut self, properties: CharacteristicProperties) -> &mut Self {
+        self.properties = properties;
         self
     }
 
     /// Sets the maximum length for the content of this characteristic. The default value is 8 bytes.
-    pub fn value_length(&mut self, length: u16) -> &mut Self {
+    pub fn max_value_length(&mut self, length: u16) -> &mut Self {
         self.max_value_length = length;
         self
-    }
-
-    /// Registers the [`Characteristic`] at the given service handle.
-    pub(crate) fn register_self(&mut self, service_handle: u16) {
-        debug!(
-            "Registering {} into service at handle 0x{:04x}.",
-            self, service_handle
-        );
-        self.service_handle = Some(service_handle);
-
-        if let AttributeControl::AutomaticResponse(_) = self.control && self.internal_value.is_empty() {
-            panic!("Automatic response requires a value to be set.");
-        }
-
-        unsafe {
-            esp_nofail!(esp_ble_gatts_add_char(
-                service_handle,
-                leaky_box_raw!(self.uuid.into()),
-                self.permissions.into(),
-                self.properties.into(),
-                leaky_box_raw!(esp_attr_value_t {
-                    attr_max_len: self.max_value_length,
-                    attr_len: self.internal_value.len() as u16,
-                    attr_value: self.internal_value.as_mut_slice().as_mut_ptr(),
-                }),
-                &mut self.internal_control,
-            ));
-        }
-    }
-
-    /// Registers the descriptors of this [`Characteristic`].
-    ///
-    /// This function should be called on the event of the characteristic being registered.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the service handle is not registered.
-    ///
-    /// # Notes
-    ///
-    /// Bluedroid does not offer a way to register descriptors to a specific characteristic.
-    /// This is simply done by registering the characteristic and then registering its descriptors.
-    pub(crate) fn register_descriptors(&mut self) {
-        debug!("Registering {}'s descriptors.", &self);
-        self.descriptors.iter_mut().for_each(|descriptor| {
-            descriptor
-                .write()
-                .unwrap()
-                .register_self(self.service_handle.expect(
-                    "Cannot register a descriptor to a characteristic without a service handle.",
-                ));
-        });
     }
 
     /// Sets the read callback for this characteristic.
@@ -183,9 +149,9 @@ impl Characteristic {
 
     /// Creates a new "User description" descriptor for this characteristic
     /// that contains the name of the characteristic.
-    pub fn show_name_as_descriptor(&mut self) -> &mut Self {
+    pub fn show_name(&mut self) -> &mut Self {
         if let Some(name) = self.name.clone() {
-            self.add_descriptor(Arc::new(RwLock::new(Descriptor::user_description(name))));
+            self.descriptor(&Arc::new(RwLock::new(Descriptor::user_description(name))));
         }
 
         if let BleUuid::Uuid16(_) = self.uuid {
@@ -196,6 +162,8 @@ impl Characteristic {
     }
 
     /// Sets the value of this [`Characteristic`].
+    ///
+    /// Sends notifications and indications to all subscribed clients.
     ///
     /// # Panics
     ///
@@ -212,13 +180,13 @@ impl Characteristic {
     pub fn set_value<T: Into<Vec<u8>>>(&mut self, value: T) -> &mut Self {
         let value: Vec<u8> = value.into();
 
+        assert!(value.len() <= self.max_value_length as usize, "Value is too long for this characteristic and it can't be changed after starting the server.");
+
         // If the characteristi hasn't been registered yet...
-        if self.service_handle == None {
+        #[allow(clippy::cast_possible_truncation)]
+        if self.service_handle.is_none() {
             // ...we can still change the value's maximum length.
             self.max_value_length = value.len() as u16;
-        } else if value.len() > self.max_value_length as usize {
-            // ...otherwise we MUST check that the value is smaller than the maximum.
-            panic!("Value is too long for this characteristic and it can't be changed after starting the server.");
         }
 
         self.internal_value = value;
@@ -231,6 +199,7 @@ impl Characteristic {
         );
 
         if let Some(handle) = self.attribute_handle {
+            #[allow(clippy::cast_possible_truncation)]
             unsafe {
                 esp_nofail!(esp_ble_gatts_set_attr_value(
                     handle,
@@ -241,6 +210,74 @@ impl Characteristic {
         }
 
         self
+    }
+
+    /// Returns a reference to the built [`Characteristic`] behind an `Arc` and an `RwLock`.
+    ///
+    /// The returned value can be passed to any function of this crate that expects a [`Characteristic`].
+    /// It can be used in different threads, because it is protected by an `RwLock`.
+    #[must_use]
+    pub fn build(&self) -> Arc<RwLock<Self>> {
+        Arc::new(RwLock::new(self.clone()))
+    }
+
+    /// Registers the [`Characteristic`] at the given service handle.
+    pub(crate) fn register_self(&mut self, service_handle: u16) {
+        debug!(
+            "Registering {} into service at handle 0x{:04x}.",
+            self, service_handle
+        );
+        self.service_handle = Some(service_handle);
+
+        #[allow(clippy::manual_assert)]
+        if let AttributeControl::AutomaticResponse(_) = self.control && self.internal_value.is_empty() {
+            panic!("Automatic response requires a value to be set.");
+        }
+
+        // Register a CCCD if needed.
+        if self.properties.notify || self.properties.indicate {
+            self.descriptor(&Descriptor::cccd().build());
+        }
+
+        #[allow(clippy::cast_possible_truncation)]
+        unsafe {
+            esp_nofail!(esp_ble_gatts_add_char(
+                service_handle,
+                leaky_box_raw!(self.uuid.into()),
+                self.permissions.into(),
+                self.properties.into(),
+                leaky_box_raw!(esp_attr_value_t {
+                    attr_max_len: self.max_value_length,
+                    attr_len: self.internal_value.len() as u16,
+                    attr_value: self.internal_value.as_mut_slice().as_mut_ptr(),
+                }),
+                &mut self.internal_control,
+            ));
+        }
+    }
+
+    /// Registers the descriptors of this [`Characteristic`].
+    ///
+    /// This function should be called on the event of the characteristic being registered.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the service handle is not registered.
+    ///
+    /// # Notes
+    ///
+    /// Bluedroid does not offer a way to register descriptors to a specific characteristic.
+    /// This is simply done by registering the characteristic and then registering its descriptors.
+    pub(crate) fn register_descriptors(&mut self) {
+        debug!("Registering {}'s descriptors.", &self);
+        self.descriptors.iter_mut().for_each(|descriptor| {
+            descriptor
+                .write()
+                .unwrap()
+                .register_self(self.service_handle.expect(
+                    "Cannot register a descriptor to a characteristic without a service handle.",
+                ));
+        });
     }
 
     pub(crate) fn get_cccd_status(

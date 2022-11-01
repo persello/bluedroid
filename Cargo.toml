@@ -1,6 +1,6 @@
 [package]
 name = "bluedroid"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "MIT"
 description = "A wrapper for the ESP32 Bluedroid Bluetooth stack."
@@ -24,7 +24,9 @@ esp_idf_tools_install_dir = "out"
 
 [package.metadata.docs.rs]
 targets = ["riscv32imc-esp-espidf"]
+default-target = "riscv32imc-esp-espidf"
 rustdoc-args = ["--no-deps"]
+cargo-args = ["-Z", "build-std"]
 
 [dependencies]
 esp-idf-sys = { version = "0.31.10", features = ["native"] }
