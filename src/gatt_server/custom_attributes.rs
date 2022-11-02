@@ -42,10 +42,6 @@ impl Descriptor {
             // TODO: Find the characteristic that contains the handle.
             // WARNING: Using the handle is incredibly stupid as the NVS is not erased across flashes.
 
-            // Inject characteristic UUID into the callback. Fucking hell.
-            // Option 1. Add parent references to every object in the tree.
-            // Option 2. ??????????
-
             // Create a key from the connection address.
             let key = format!(
                 "{:02X}{:02X}{:02X}{:02X}-{:04X}",
@@ -57,7 +53,7 @@ impl Descriptor {
             );
 
             // Prepare buffer and read correct CCCD value from non-volatile storage.
-            let mut buf: [u8; 1] = [0; 1];
+            let mut buf: [u8; 2] = [0; 2];
             if let Some(value) = storage.get_raw(&key, &mut buf).unwrap() {
                 debug!("Read CCCD value: {:?} for key {}.", value, key);
                 value.0.to_vec()
