@@ -76,7 +76,7 @@ impl Descriptor {
                 );
 
                 // Prepare buffer and read correct CCCD value from non-volatile storage.
-                let mut buf: [u8; 1] = [0; 1];
+                let mut buf: [u8; 2] = [0; 2];
                 storage
                     .get_raw(&key, &mut buf)
                     .expect("Cannot get raw value from the NVS. Did you declare an NVS partition?")
