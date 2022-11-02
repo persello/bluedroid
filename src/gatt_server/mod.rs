@@ -7,28 +7,7 @@ use std::{
     sync::{Arc, Mutex, RwLock},
 };
 
-use esp_idf_sys::{
-    esp_ble_addr_type_t_BLE_ADDR_TYPE_RPA_PUBLIC, esp_ble_adv_channel_t_ADV_CHNL_ALL,
-    esp_ble_adv_data_t, esp_ble_adv_filter_t_ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY,
-    esp_ble_adv_params_t, esp_ble_adv_type_t_ADV_TYPE_IND, esp_ble_gap_cb_param_t,
-    esp_ble_gap_register_callback, esp_ble_gatts_cb_param_t, esp_ble_gatts_register_callback,
-    esp_bluedroid_enable, esp_bluedroid_init, esp_bt_controller_config_t, esp_bt_controller_enable,
-    esp_bt_controller_init, esp_bt_controller_mem_release, esp_bt_mode_t_ESP_BT_MODE_BLE,
-    esp_bt_mode_t_ESP_BT_MODE_CLASSIC_BT, esp_gap_ble_cb_event_t, esp_gatt_if_t,
-    esp_gatts_cb_event_t, esp_nofail, nvs_flash_erase, nvs_flash_init, AGC_RECORRECT_EN,
-    BLE_HW_TARGET_CODE_ESP32C3_CHIP_ECO0, CFG_NASK, CONFIG_BT_CTRL_ADV_DUP_FILT_MAX,
-    CONFIG_BT_CTRL_BLE_MAX_ACT_EFF, CONFIG_BT_CTRL_BLE_STATIC_ACL_TX_BUF_NB,
-    CONFIG_BT_CTRL_CE_LENGTH_TYPE_EFF, CONFIG_BT_CTRL_COEX_PHY_CODED_TX_RX_TLIM_EFF,
-    CONFIG_BT_CTRL_DFT_TX_POWER_LEVEL_EFF, CONFIG_BT_CTRL_HCI_TL_EFF, CONFIG_BT_CTRL_HW_CCA_EFF,
-    CONFIG_BT_CTRL_HW_CCA_VAL, CONFIG_BT_CTRL_MODE_EFF, CONFIG_BT_CTRL_PINNED_TO_CORE,
-    CONFIG_BT_CTRL_RX_ANTENNA_INDEX_EFF, CONFIG_BT_CTRL_SLEEP_CLOCK_EFF,
-    CONFIG_BT_CTRL_SLEEP_MODE_EFF, CONFIG_BT_CTRL_TX_ANTENNA_INDEX_EFF,
-    ESP_BLE_ADV_FLAG_BREDR_NOT_SPT, ESP_BLE_ADV_FLAG_GEN_DISC, ESP_BT_CTRL_CONFIG_MAGIC_VAL,
-    ESP_BT_CTRL_CONFIG_VERSION, ESP_ERR_NVS_NEW_VERSION_FOUND, ESP_ERR_NVS_NO_FREE_PAGES,
-    ESP_TASK_BT_CONTROLLER_PRIO, ESP_TASK_BT_CONTROLLER_STACK, MESH_DUPLICATE_SCAN_CACHE_SIZE,
-    NORMAL_SCAN_DUPLICATE_CACHE_SIZE, SCAN_DUPLICATE_MODE, SCAN_DUPLICATE_TYPE_VALUE,
-    SLAVE_CE_LEN_MIN_DEFAULT,
-};
+use esp_idf_sys::*;
 use lazy_static::lazy_static;
 use log::{info, warn};
 
@@ -229,7 +208,33 @@ impl GattServer {
             }
         }
 
-        #[allow(clippy::cast_possible_truncation)]
+        #[cfg(esp32)]
+        let default_controller_configuration = esp_bt_controller_config_t {
+            controller_task_stack_size: ESP_TASK_BT_CONTROLLER_STACK as _,
+            controller_task_prio: ESP_TASK_BT_CONTROLLER_PRIO as _,
+            hci_uart_no: BT_HCI_UART_NO_DEFAULT as _,
+            hci_uart_baudrate: BT_HCI_UART_BAUDRATE_DEFAULT,
+            scan_duplicate_mode: SCAN_DUPLICATE_MODE as _,
+            scan_duplicate_type: SCAN_DUPLICATE_TYPE_VALUE as _,
+            normal_adv_size: NORMAL_SCAN_DUPLICATE_CACHE_SIZE as _,
+            mesh_adv_size: MESH_DUPLICATE_SCAN_CACHE_SIZE as _,
+            send_adv_reserved_size: SCAN_SEND_ADV_RESERVED_SIZE as _,
+            controller_debug_flag: CONTROLLER_ADV_LOST_DEBUG_BIT,
+            mode: esp_bt_mode_t_ESP_BT_MODE_BLE as _,
+            ble_max_conn: CONFIG_BTDM_CTRL_BLE_MAX_CONN_EFF as _,
+            bt_max_acl_conn: CONFIG_BTDM_CTRL_BR_EDR_MAX_ACL_CONN_EFF as _,
+            bt_sco_datapath: CONFIG_BTDM_CTRL_BR_EDR_SCO_DATA_PATH_EFF as _,
+            auto_latency: BTDM_CTRL_AUTO_LATENCY_EFF != 0,
+            bt_legacy_auth_vs_evt: BTDM_CTRL_LEGACY_AUTH_VENDOR_EVT_EFF != 0,
+            bt_max_sync_conn: CONFIG_BTDM_CTRL_BR_EDR_MAX_SYNC_CONN_EFF as _,
+            ble_sca: CONFIG_BTDM_BLE_SLEEP_CLOCK_ACCURACY_INDEX_EFF as _,
+            pcm_role: CONFIG_BTDM_CTRL_PCM_ROLE_EFF as _,
+            pcm_polar: CONFIG_BTDM_CTRL_PCM_POLAR_EFF as _,
+            hli: BTDM_CTRL_HLI != 0,
+            magic: ESP_BT_CONTROLLER_CONFIG_MAGIC_VAL,
+        };
+
+        #[cfg(esp32c3)]
         let default_controller_configuration = esp_bt_controller_config_t {
             magic: ESP_BT_CTRL_CONFIG_MAGIC_VAL,
             version: ESP_BT_CTRL_CONFIG_VERSION,
