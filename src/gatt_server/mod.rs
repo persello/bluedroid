@@ -1,3 +1,7 @@
+//! The GATT server.
+
+#![allow(clippy::cast_possible_truncation)]
+
 use std::{
     collections::HashSet,
     sync::{Arc, Mutex, RwLock},
@@ -31,7 +35,8 @@ mod gap_event_handler;
 mod gatts_event_handler;
 
 lazy_static! {
-    pub static ref GLOBAL_GATT_SERVER: Mutex<Option<GattServer>> = Mutex::new(Some(GattServer {
+    /// The GATT server singleton.
+    pub static ref GLOBAL_GATT_SERVER: Mutex<GattServer> = Mutex::new(GattServer {
         profiles: Vec::new(),
         started: false,
         advertisement_parameters: esp_ble_adv_params_t {
@@ -76,9 +81,12 @@ lazy_static! {
         advertisement_configured: false,
         device_name: "ESP32".to_string(),
         active_connections: HashSet::new(),
-    }));
+    });
 }
 
+/// Represents a GATT server.
+///
+/// This is a singleton, and can be accessed via the [`GLOBAL_GATT_SERVER`] static.
 pub struct GattServer {
     profiles: Vec<Arc<RwLock<Profile>>>,
     started: bool,
@@ -93,6 +101,11 @@ pub struct GattServer {
 unsafe impl Send for GattServer {}
 
 impl GattServer {
+    /// Starts a [`GattServer`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if a profile's lock is poisoned.
     pub fn start(&mut self) {
         if self.started {
             warn!("GATT server already started.");
@@ -100,14 +113,17 @@ impl GattServer {
         }
 
         self.started = true;
-        self.initialise_ble_stack();
+        Self::initialise_ble_stack();
 
         // Registration of profiles, services, characteristics and descriptors.
         self.profiles.iter().for_each(|profile| {
             profile.write().unwrap().register_self();
-        })
+        });
     }
 
+    /// Sets the name to be advertised in GAP packets.
+    ///
+    /// The name must be set before starting the GATT server.
     pub fn device_name<S: Into<String>>(&mut self, name: S) -> &mut Self {
         if self.advertisement_configured {
             warn!(
@@ -122,6 +138,7 @@ impl GattServer {
         self
     }
 
+    /// Sets the device appearance value to be advertised in GAP packets.
     pub fn appearance(&mut self, appearance: Appearance) -> &mut Self {
         if self.advertisement_configured {
             warn!("Appearance already set. Please set the appearance before starting the server.");
@@ -134,31 +151,40 @@ impl GattServer {
         self
     }
 
-    pub fn add_profiles(&mut self, profiles: &[Arc<RwLock<Profile>>]) -> &mut Self {
-        self.profiles.append(&mut profiles.to_vec());
-        if self.started {
-            warn!("In order to register the newly added profiles, you'll need to restart the GATT server.");
-        }
-
-        self
-    }
-
+    /// Sets the raw GAP advertisement parameters.
     pub fn set_adv_params(&mut self, params: esp_ble_adv_params_t) -> &mut Self {
         self.advertisement_parameters = params;
         self
     }
 
+    /// Sets the raw GAP advertisement data.
     pub fn set_adv_data(&mut self, data: esp_ble_adv_data_t) -> &mut Self {
         self.advertisement_data = data;
 
         self
     }
 
-    pub fn advertise_service(&mut self, service: Service) -> &mut Self {
-        self.scan_response_data.p_service_uuid =
-            leaky_box_raw!(service.uuid.as_uuid128_array()) as *mut u8;
-        self.scan_response_data.service_uuid_len = service.uuid.as_uuid128_array().len() as u16;
+    /// Advertises the specified [`Service`] in GAP packets.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the service lock is poisoned.
+    pub fn advertise_service(&mut self, service: &Arc<RwLock<Service>>) -> &mut Self {
+        let uuid = service.read().unwrap().uuid.as_uuid128_array();
+        self.scan_response_data.p_service_uuid = leaky_box_raw!(uuid).cast::<u8>();
+        self.scan_response_data.service_uuid_len = uuid.len() as u16;
 
+        self
+    }
+
+    /// Add a [`Profile`] to the GATT server.
+    pub fn profile(&mut self, profile: Arc<RwLock<Profile>>) -> &mut Self {
+        if self.started {
+            warn!("Cannot add profile after server has started.");
+            return self;
+        }
+
+        self.profiles.push(profile);
         self
     }
 
@@ -169,7 +195,7 @@ impl GattServer {
             .cloned()
     }
 
-    fn initialise_ble_stack(&mut self) {
+    fn initialise_ble_stack() {
         info!("Initialising BLE stack.");
 
         // NVS initialisation.
@@ -273,8 +299,6 @@ impl GattServer {
         GLOBAL_GATT_SERVER
             .lock()
             .expect("Cannot lock global GATT server.")
-            .as_mut()
-            .expect("Cannot get mutable reference to global GATT server.")
             .gatts_event_handler(event, gatts_if, param);
     }
 
@@ -288,8 +312,6 @@ impl GattServer {
         GLOBAL_GATT_SERVER
             .lock()
             .expect("Cannot lock global GATT server.")
-            .as_mut()
-            .expect("Cannot get mutable reference to global GATT server.")
             .gap_event_handler(event, param);
     }
 }

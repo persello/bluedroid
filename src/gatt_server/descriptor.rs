@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLock};
+
 use crate::{
     leaky_box_raw,
     utilities::{AttributeControl, AttributePermissions, BleUuid},
@@ -10,33 +12,50 @@ use esp_idf_sys::{
 };
 use log::{debug, info, warn};
 
+/// Represents a GATT descriptor.
 #[derive(Debug, Clone)]
 pub struct Descriptor {
     name: Option<String>,
     pub(crate) uuid: BleUuid,
     value: Vec<u8>,
     pub(crate) attribute_handle: Option<u16>,
-    // TODO: Private.
-    pub permissions: AttributePermissions,
+    permissions: AttributePermissions,
     pub(crate) control: AttributeControl,
     internal_control: esp_attr_control_t,
     pub(crate) write_callback: Option<fn(Vec<u8>, esp_ble_gatts_cb_param_t_gatts_write_evt_param)>,
 }
 
 impl Descriptor {
-    pub fn new(name: &str, uuid: BleUuid, permissions: AttributePermissions) -> Self {
+    /// Creates a new [`Descriptor`].
+    #[must_use]
+    pub fn new(uuid: BleUuid) -> Self {
         Self {
-            name: Some(String::from(name)),
+            name: None,
             uuid,
             value: vec![0],
             attribute_handle: None,
-            permissions,
+            permissions: AttributePermissions::default(),
             control: AttributeControl::AutomaticResponse(vec![0]),
             internal_control: AttributeControl::AutomaticResponse(vec![0]).into(),
             write_callback: None,
         }
     }
 
+    /// Sets the name of the [`Descriptor`].
+    ///
+    /// This name is only used for debugging purposes.
+    pub fn name(&mut self, name: &str) -> &mut Self {
+        self.name = Some(String::from(name));
+        self
+    }
+
+    /// Sets the permissions of the [`Descriptor`].
+    pub fn permissions(&mut self, permissions: AttributePermissions) -> &mut Self {
+        self.permissions = permissions;
+        self
+    }
+
+    /// Sets the read callback for the [`Descriptor`].
     pub fn on_read(
         &mut self,
         callback: fn(esp_ble_gatts_cb_param_t_gatts_read_evt_param) -> Vec<u8>,
@@ -56,6 +75,7 @@ impl Descriptor {
         self
     }
 
+    /// Sets the write callback for the [`Descriptor`].
     pub fn on_write(
         &mut self,
         callback: fn(Vec<u8>, esp_ble_gatts_cb_param_t_gatts_write_evt_param),
@@ -74,13 +94,14 @@ impl Descriptor {
         self
     }
 
-    // TODO: Implement same mechanism as for characteristics.
+    /// Sets the value of the [`Descriptor`].
     pub fn set_value<T: Into<Vec<u8>>>(&mut self, value: T) -> &mut Self {
         self.value = value.into();
 
         debug!("Trying to set value of {} to {:02X?}.", self, self.value);
 
         if let Some(handle) = self.attribute_handle {
+            #[allow(clippy::cast_possible_truncation)]
             unsafe {
                 esp_nofail!(esp_ble_gatts_set_attr_value(
                     handle,
@@ -97,12 +118,21 @@ impl Descriptor {
         self
     }
 
+    /// Returns a reference to the built [`Descriptor`] behind an `Arc` and an `RwLock`.
+    ///
+    /// The returned value can be passed to any function of this crate that expects a [`Descriptor`].
+    /// It can be used in different threads, because it is protected by an `RwLock`.
+    #[must_use]
+    pub fn build(&self) -> Arc<RwLock<Self>> {
+        Arc::new(RwLock::new(self.clone()))
+    }
     pub(crate) fn register_self(&mut self, service_handle: u16) {
         debug!(
             "Registering {} into service at handle 0x{:04x}.",
             self, service_handle
         );
 
+        #[allow(clippy::cast_possible_truncation)]
         unsafe {
             esp_nofail!(esp_ble_gatts_add_char_descr(
                 service_handle,

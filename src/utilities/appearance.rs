@@ -1,3 +1,8 @@
+#![allow(missing_docs)]
+
+/// A list of standard appearance values.
+///
+/// This list was copied from the Bluetooth SIG website.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Appearance {
     GenericUnknown = 0x0000,
@@ -303,6 +308,6 @@ pub enum Appearance {
 
 impl From<Appearance> for i32 {
     fn from(appearance: Appearance) -> Self {
-        appearance as i32
+        appearance as Self
     }
 }

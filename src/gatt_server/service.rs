@@ -9,6 +9,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+/// Represents a GATT service.
 #[derive(Debug, Clone)]
 pub struct Service {
     name: Option<String>,
@@ -19,22 +20,53 @@ pub struct Service {
 }
 
 impl Service {
-    pub fn new(name: &str, uuid: BleUuid, primary: bool) -> Service {
-        Service {
-            name: Some(String::from(name)),
+    /// Creates a new [`Service`].
+    #[must_use]
+    pub const fn new(uuid: BleUuid) -> Self {
+        Self {
+            name: None,
             uuid,
             characteristics: Vec::new(),
-            primary,
+            primary: false,
             handle: None,
         }
     }
 
-    pub fn add_characteristic(&mut self, characteristic: Arc<RwLock<Characteristic>>) -> &mut Self {
-        self.characteristics.push(characteristic);
+    /// Sets the name of the [`Service`].
+    ///
+    /// This name is only used for debugging purposes.
+    pub fn name<S: Into<String>>(&mut self, name: S) -> &mut Self {
+        self.name = Some(name.into());
         self
     }
 
-    pub(crate) fn get_characteristic(&self, handle: u16) -> Option<Arc<RwLock<Characteristic>>> {
+    /// Sets the [`Service`] as primary.
+    ///
+    /// If you want your service to show up after an interrogation, you need to set it as primary.
+    pub fn primary(&mut self) -> &mut Self {
+        self.primary = true;
+        self
+    }
+
+    /// Adds a [`Characteristic`] to the [`Service`].
+    pub fn characteristic(&mut self, characteristic: &Arc<RwLock<Characteristic>>) -> &mut Self {
+        self.characteristics.push(characteristic.clone());
+        self
+    }
+
+    /// Returns a reference to the built [`Service`] behind an `Arc` and an `RwLock`.
+    ///
+    /// The returned value can be passed to any function of this crate that expects a [`Service`].
+    /// It can be used in different threads, because it is protected by an `RwLock`.
+    #[must_use]
+    pub fn build(&self) -> Arc<RwLock<Self>> {
+        Arc::new(RwLock::new(self.clone()))
+    }
+
+    pub(crate) fn get_characteristic_by_handle(
+        &self,
+        handle: u16,
+    ) -> Option<Arc<RwLock<Characteristic>>> {
         self.characteristics
             .iter()
             .find(|characteristic| characteristic.read().unwrap().attribute_handle == Some(handle))
@@ -86,12 +118,39 @@ impl Service {
 
     pub(crate) fn register_characteristics(&mut self) {
         debug!("Registering {}'s characteristics.", &self);
-        self.characteristics.iter().for_each(|characteristic| {
-            characteristic.write().unwrap().register_self(
-                self.handle
-                    .expect("Cannot register a characteristic to a service without a handle."),
-            );
-        });
+
+        // Attention: The characteristics should be registered one after another.
+        // We need to wait for the previous characteristic to be registered before we can register the next one.
+
+        if self.characteristics.is_empty() {
+            return;
+        }
+
+        // Loghi docet.
+
+        let service_handle = self.handle.unwrap();
+        let characteristics = self.characteristics.iter().cloned().zip(0..);
+        let current_index = Arc::new(RwLock::new(0));
+
+        for (characteristic, index) in characteristics {
+            let i = current_index.clone();
+            std::thread::spawn(move || {
+                while *i.read().unwrap() != index {
+                    std::thread::yield_now();
+                }
+
+                characteristic
+                    .write()
+                    .unwrap()
+                    .register_self(service_handle);
+
+                while characteristic.read().unwrap().attribute_handle.is_none() {
+                    std::thread::yield_now();
+                }
+
+                *i.write().unwrap() += 1;
+            });
+        }
     }
 }
 

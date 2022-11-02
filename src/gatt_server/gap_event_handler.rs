@@ -42,18 +42,18 @@ impl GattServer {
             }
             esp_gap_ble_cb_event_t_ESP_GAP_BLE_ADV_START_COMPLETE_EVT => {
                 let param = unsafe { (*param).adv_data_cmpl };
-                if param.status != esp_bt_status_t_ESP_BT_STATUS_SUCCESS {
-                    warn!("BLE GAP advertisement start failed.");
-                } else {
+                if param.status == esp_bt_status_t_ESP_BT_STATUS_SUCCESS {
                     debug!("BLE GAP advertisement started.");
+                } else {
+                    warn!("BLE GAP advertisement start failed.");
                 }
             }
             esp_gap_ble_cb_event_t_ESP_GAP_BLE_ADV_STOP_COMPLETE_EVT => {
                 let param = unsafe { (*param).adv_data_cmpl };
-                if param.status != esp_bt_status_t_ESP_BT_STATUS_SUCCESS {
-                    warn!("BLE GAP advertisement stop failed.");
-                } else {
+                if param.status == esp_bt_status_t_ESP_BT_STATUS_SUCCESS {
                     debug!("BLE GAP advertisement stopped.");
+                } else {
+                    warn!("BLE GAP advertisement stop failed.");
                 }
             }
             esp_gap_ble_cb_event_t_ESP_GAP_BLE_UPDATE_CONN_PARAMS_EVT => {

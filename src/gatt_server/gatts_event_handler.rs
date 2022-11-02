@@ -1,6 +1,5 @@
 use std::ffi::c_char;
 
-use crate::gatt_server::profile::Profile;
 use crate::{
     gatt_server::GattServer,
     leaky_box_raw,
@@ -82,7 +81,7 @@ impl GattServer {
                     if !self.advertisement_configured {
                         unsafe {
                             esp_nofail!(esp_ble_gap_set_device_name(
-                                self.device_name.as_ptr() as *const c_char
+                                self.device_name.as_ptr().cast::<i8>()
                             ));
 
                             self.advertisement_configured = true;
@@ -123,7 +122,7 @@ impl GattServer {
                         if let Some(characteristic) = service
                             .read()
                             .unwrap()
-                            .get_characteristic(param.attr_handle)
+                            .get_characteristic_by_handle(param.attr_handle)
                         {
                             debug!(
                                 "Received set attribute value event for characteristic {}.",
@@ -134,8 +133,8 @@ impl GattServer {
                                 for connection in self.active_connections.clone() {
                                     let simulated_read_param =
                                         esp_ble_gatts_cb_param_t_gatts_read_evt_param {
-                                            bda: connection.remote_bda(),
-                                            conn_id: connection.id(),
+                                            bda: connection.remote_bda,
+                                            conn_id: connection.id,
                                             handle: characteristic
                                                 .read()
                                                 .unwrap()
@@ -158,27 +157,37 @@ impl GattServer {
                                         .unwrap()
                                         .get_cccd_status(simulated_read_param);
 
-                                    if let Some((_, indication)) = status && indication {
-                                    debug!("Indicating {} value change to {:02X?}.", characteristic.read().unwrap(), connection.id());
-                                    let mut internal_value = characteristic.write().unwrap().internal_value.clone();
-                                    unsafe {
-                                        esp_nofail!(esp_ble_gatts_send_indicate(
-                                            gatts_if,
-                                            connection.id(),
-                                            param.attr_handle,
-                                            internal_value.len() as u16,
-                                            internal_value.as_mut_slice().as_mut_ptr(),
-                                            true
-                                        ));
+                                    if let Some((_, indication)) = status {
+                                        if indication {
+                                            debug!(
+                                                "Indicating {} value change to {:02X?}.",
+                                                characteristic.read().unwrap(),
+                                                connection.id
+                                            );
+                                            let mut internal_value = characteristic
+                                                .write()
+                                                .unwrap()
+                                                .internal_value
+                                                .clone();
+                                            unsafe {
+                                                esp_nofail!(esp_ble_gatts_send_indicate(
+                                                    gatts_if,
+                                                    connection.id,
+                                                    param.attr_handle,
+                                                    internal_value.len() as u16,
+                                                    internal_value.as_mut_slice().as_mut_ptr(),
+                                                    true
+                                                ));
+                                            }
+                                        }
                                     }
-                                }
                                 }
                             } else if characteristic.read().unwrap().properties.notify {
                                 for connection in self.active_connections.clone() {
                                     let simulated_read_param =
                                         esp_ble_gatts_cb_param_t_gatts_read_evt_param {
-                                            bda: connection.remote_bda(),
-                                            conn_id: connection.id(),
+                                            bda: connection.remote_bda,
+                                            conn_id: connection.id,
                                             handle: characteristic
                                                 .read()
                                                 .unwrap()
@@ -201,18 +210,29 @@ impl GattServer {
                                         .unwrap()
                                         .get_cccd_status(simulated_read_param);
 
-                                    if let Some((notification, _)) = status && notification {
-                                    debug!("Notifying {} value change to {}.", characteristic.read().unwrap(), connection);
-                                    let mut internal_value = characteristic.write().unwrap().internal_value.clone();
-                                    unsafe {
-                                        esp_nofail!(esp_ble_gatts_send_indicate(
-                                            gatts_if,
-                                            connection.id(),
-                                            param.attr_handle,
-                                            internal_value.len() as u16,
-                                            internal_value.as_mut_slice().as_mut_ptr(),
-                                            false
-                                        ));
+                                    if let Some((notification, _)) = status {
+                                        if notification {
+                                            debug!(
+                                                "Notifying {} value change to {}.",
+                                                characteristic.read().unwrap(),
+                                                connection
+                                            );
+                                            let mut internal_value = characteristic
+                                                .write()
+                                                .unwrap()
+                                                .internal_value
+                                                .clone();
+                                            unsafe {
+                                                esp_nofail!(esp_ble_gatts_send_indicate(
+                                                    gatts_if,
+                                                    connection.id,
+                                                    param.attr_handle,
+                                                    internal_value.len() as u16,
+                                                    internal_value.as_mut_slice().as_mut_ptr(),
+                                                    false
+                                                ));
+                                            }
+                                        }
                                     }
                                 }
                                 }
@@ -409,7 +429,8 @@ impl Profile {
                                 write_callback(value, param);
 
                                 // Send response if needed.
-                                if param.need_rsp && let AttributeControl::ResponseByApp(read_callback) = characteristic.read().unwrap().control {
+                                if param.need_rsp {
+                                    if let AttributeControl::ResponseByApp(read_callback) = characteristic.read().unwrap().control {
 
                                     // Simulate a read operation.
                                     let param_as_read_operation = esp_ble_gatts_cb_param_t_gatts_read_evt_param {
@@ -448,6 +469,7 @@ impl Profile {
                                     }
                                 }
                             }
+                            }
                         } else {
                             characteristic.read().unwrap().descriptors.iter().for_each(
                                 |descriptor| {
@@ -467,7 +489,8 @@ impl Profile {
                                             write_callback(value, param);
 
                                             // Send response if needed.
-                                            if param.need_rsp && let AttributeControl::ResponseByApp(read_callback) = descriptor.read().unwrap().control {
+                                            if param.need_rsp {
+                                                if let AttributeControl::ResponseByApp(read_callback) = descriptor.read().unwrap().control {
 
                                                 // Simulate a read operation.
                                                 let param_as_read_operation = esp_ble_gatts_cb_param_t_gatts_read_evt_param {
@@ -505,6 +528,7 @@ impl Profile {
                                                     ));
                                                 }
                                             }
+                                        }
                                         }
                                     }
                                 },

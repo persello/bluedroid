@@ -1,5 +1,15 @@
+//! This module contains useful structs and macros for the crate.
+
 // Leaky box: internally useful for ffi C interfacing.
 pub(crate) mod leaky_box;
+
+// Utilities: private.
+mod attribute_control;
+pub(crate) use attribute_control::AttributeControl;
+
+// Connection: private.
+mod connection;
+pub(crate) use connection::Connection;
 
 // BLE identifiers: public.
 mod ble_uuid;
@@ -16,11 +26,3 @@ pub use characteristic_properties::CharacteristicProperties;
 // Attribute permissions: public.
 mod attribute_permissions;
 pub use attribute_permissions::AttributePermissions;
-
-// Attribute control: public.
-mod attribute_control;
-pub use attribute_control::AttributeControl;
-
-// Connection: public.
-mod connection;
-pub use connection::Connection;
