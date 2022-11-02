@@ -139,7 +139,10 @@ impl Service {
                     std::thread::yield_now();
                 }
 
-                characteristic.write().unwrap().register_self(service_handle);
+                characteristic
+                    .write()
+                    .unwrap()
+                    .register_self(service_handle);
 
                 while characteristic.read().unwrap().attribute_handle.is_none() {
                     std::thread::yield_now();
