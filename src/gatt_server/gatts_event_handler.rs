@@ -1,7 +1,5 @@
-use std::ffi::c_char;
-
 use crate::{
-    gatt_server::GattServer,
+    gatt_server::{GattServer, Profile},
     leaky_box_raw,
     utilities::{AttributeControl, BleUuid, Connection},
 };
@@ -234,7 +232,6 @@ impl GattServer {
                                             }
                                         }
                                     }
-                                }
                                 }
                             }
 
