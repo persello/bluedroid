@@ -235,6 +235,7 @@ impl GattServer {
                                         }
                                     }
                                 }
+                                }
                             }
 
                             let value: *mut *const u8 = &mut [0u8].as_ptr();
