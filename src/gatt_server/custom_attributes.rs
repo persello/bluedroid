@@ -61,38 +61,28 @@ impl Descriptor {
                 // TODO: Find the characteristic that contains the handle.
                 // WARNING: Using the handle is incredibly stupid as the NVS is not erased across flashes.
 
-                // Inject characteristic UUID into the callback. Fucking hell.
-                // Option 1. Add parent references to every object in the tree.
-                // Option 2. ??????????
+            // Create a key from the connection address.
+            let key = format!(
+                "{:02X}{:02X}{:02X}{:02X}-{:04X}",
+                /* param.bda[1], */ param.bda[2],
+                param.bda[3],
+                param.bda[4],
+                param.bda[5],
+                param.handle
+            );
 
-                // Create a key from the connection address.
-                let key = format!(
-                    "{:02X}{:02X}{:02X}{:02X}-{:04X}",
-                    /* param.bda[1], */ param.bda[2],
-                    param.bda[3],
-                    param.bda[4],
-                    param.bda[5],
-                    param.handle
-                );
-
-                // Prepare buffer and read correct CCCD value from non-volatile storage.
-                let mut buf: [u8; 1] = [0; 1];
-                storage
-                    .get_raw(&key, &mut buf)
-                    .expect("Cannot get raw value from the NVS. Did you declare an NVS partition?")
-                    .map_or_else(
-                        || {
-                            debug!("No CCCD value found for key {}.", key);
-                            vec![0, 0]
-                        },
-                        |value| {
-                            debug!("Read CCCD value: {:?} for key {}.", value, key);
-                            value.0.to_vec()
-                        },
-                    )
-            })
-            .on_write(|value, param| {
-                let mut storage = STORAGE.lock().unwrap();
+            // Prepare buffer and read correct CCCD value from non-volatile storage.
+            let mut buf: [u8; 2] = [0; 2];
+            if let Some(value) = storage.get_raw(&key, &mut buf).unwrap() {
+                debug!("Read CCCD value: {:?} for key {}.", value, key);
+                value.0.to_vec()
+            } else {
+                debug!("No CCCD value found for key {}.", key);
+                vec![0, 0]
+            }
+        })
+        .on_write(|value, param| {
+            let mut storage = STORAGE.lock().unwrap();
 
                 // Create a key from the connection address.
                 let key = format!(

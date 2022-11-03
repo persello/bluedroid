@@ -230,8 +230,10 @@ impl Characteristic {
         self.service_handle = Some(service_handle);
 
         #[allow(clippy::manual_assert)]
-        if let AttributeControl::AutomaticResponse(_) = self.control && self.internal_value.is_empty() {
-            panic!("Automatic response requires a value to be set.");
+        if let AttributeControl::AutomaticResponse(_) = self.control {
+            if self.internal_value.is_empty() {
+                panic!("Automatic response requires a value to be set.");
+            }
         }
 
         // Register a CCCD if needed.
