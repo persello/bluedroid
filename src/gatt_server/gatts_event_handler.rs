@@ -427,7 +427,7 @@ impl Profile {
 
                                 // Send response if needed.
                                 if param.need_rsp {
-                                    if let AttributeControl::ResponseByApp(read_callback) = characteristic.read().unwrap().control {
+                                    if let AttributeControl::ResponseByApp(read_callback) = &characteristic.read().unwrap().control {
 
                                     // Simulate a read operation.
                                     let param_as_read_operation = esp_ble_gatts_cb_param_t_gatts_read_evt_param {
@@ -487,7 +487,7 @@ impl Profile {
 
                                             // Send response if needed.
                                             if param.need_rsp {
-                                                if let AttributeControl::ResponseByApp(read_callback) = descriptor.read().unwrap().control {
+                                                if let AttributeControl::ResponseByApp(read_callback) = &descriptor.read().unwrap().control {
 
                                                 // Simulate a read operation.
                                                 let param_as_read_operation = esp_ble_gatts_cb_param_t_gatts_read_evt_param {
@@ -553,7 +553,7 @@ impl Profile {
 
                                 // If the characteristic has a read handler, call it.
                                 if let AttributeControl::ResponseByApp(callback) =
-                                    characteristic.read().unwrap().control
+                                    &characteristic.read().unwrap().control
                                 {
                                     let value = callback(param);
 
@@ -592,7 +592,7 @@ impl Profile {
                                             );
 
                                             if let AttributeControl::ResponseByApp(callback) =
-                                                descriptor.read().unwrap().control
+                                                &descriptor.read().unwrap().control
                                             {
                                                 let value = callback(param);
 

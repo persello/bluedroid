@@ -104,9 +104,9 @@ impl Characteristic {
     /// # Notes
     ///
     /// The callback will be called from the Bluetooth stack's context, so it must not block.
-    pub fn on_read(
+    pub fn on_read<C: Fn(esp_ble_gatts_cb_param_t_gatts_read_evt_param) -> Vec<u8> + Send + Sync + 'static>(
         &mut self,
-        callback: fn(esp_ble_gatts_cb_param_t_gatts_read_evt_param) -> Vec<u8>,
+        callback: C,
     ) -> &mut Self {
         if !self.properties.read || !self.permissions.read_access {
             warn!(
@@ -117,7 +117,7 @@ impl Characteristic {
             return self;
         }
 
-        self.control = AttributeControl::ResponseByApp(callback);
+        self.control = AttributeControl::ResponseByApp(Arc::new(callback));
         self.internal_control = self.control.clone().into();
 
         self
@@ -291,7 +291,7 @@ impl Characteristic {
             .iter()
             .find(|desc| desc.read().unwrap().uuid == BleUuid::Uuid16(0x2902))
         {
-            if let AttributeControl::ResponseByApp(callback) = cccd.read().unwrap().control {
+            if let AttributeControl::ResponseByApp(callback) = &cccd.read().unwrap().control {
                 let value = callback(param);
 
                 return Some((
