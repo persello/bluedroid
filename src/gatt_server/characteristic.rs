@@ -180,6 +180,7 @@ impl Characteristic {
     pub fn set_value<T: Into<Vec<u8>>>(&mut self, value: T) -> &mut Self {
         let value: Vec<u8> = value.into();
 
+        #[allow(clippy::manual_assert)]
         if let Some(max_value_length) = self.max_value_length {
             if value.len() > max_value_length as usize {
                 panic!(
