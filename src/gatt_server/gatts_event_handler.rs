@@ -1,3 +1,5 @@
+#![allow(clippy::too_many_lines, clippy::if_not_else)]
+
 use crate::{
     gatt_server::{GattServer, Profile},
     leaky_box_raw,
@@ -278,7 +280,7 @@ impl GattServer {
                 profile
                     .write()
                     .unwrap()
-                    .gatts_event_handler(event, gatts_if, param)
+                    .gatts_event_handler(event, gatts_if, param);
             }
         });
     }
@@ -380,11 +382,16 @@ impl Profile {
             esp_gatts_cb_event_t_ESP_GATTS_ADD_CHAR_DESCR_EVT => {
                 let param = unsafe { (*param).add_char_descr };
 
+                // ATTENTION: Descriptors might have duplicate UUIDs!
+                // We need to set them in order of creation.
+
                 if let Some(service) = self.get_service(param.service_handle) {
                     if let Some(descriptor) = service
                         .read()
                         .unwrap()
-                        .get_descriptor_by_id(param.descr_uuid)
+                        .get_descriptors_by_id(param.descr_uuid)
+                        .iter()
+                        .find(|d| d.read().unwrap().attribute_handle.is_none())
                     {
                         if param.status != esp_gatt_status_t_ESP_GATT_OK {
                             warn!("GATT descriptor registration failed.");
@@ -406,7 +413,7 @@ impl Profile {
             esp_gatts_cb_event_t_ESP_GATTS_WRITE_EVT => {
                 let param = unsafe { (*param).write };
 
-                for service in self.services.iter() {
+                for service in &self.services {
                     service.read().unwrap().characteristics.iter().for_each(|characteristic| {
                         if characteristic.read().unwrap().attribute_handle == Some(param.handle) {
                             debug!(
@@ -537,13 +544,24 @@ impl Profile {
             esp_gatts_cb_event_t_ESP_GATTS_READ_EVT => {
                 let param = unsafe { (*param).read };
 
-                for service in self.services.iter() {
+                debug!(
+                    "MCC: Received read event for handle 0x{:04x}.",
+                    param.handle
+                );
+
+                for service in &self.services {
                     service
                         .read()
                         .unwrap()
                         .characteristics
                         .iter()
                         .for_each(|characteristic| {
+                            debug!(
+                                "MCC: Checking characteristic {} ({:?}).",
+                                characteristic.read().unwrap(),
+                                characteristic.read().unwrap().attribute_handle
+                            );
+
                             if characteristic.read().unwrap().attribute_handle == Some(param.handle)
                             {
                                 debug!(
@@ -583,6 +601,12 @@ impl Profile {
                             } else {
                                 characteristic.read().unwrap().descriptors.iter().for_each(
                                     |descriptor| {
+                                        debug!(
+                                            "MCC: Checking descriptor {} ({:?}).",
+                                            descriptor.read().unwrap(),
+                                            descriptor.read().unwrap().attribute_handle
+                                        );
+
                                         if descriptor.read().unwrap().attribute_handle
                                             == Some(param.handle)
                                         {
@@ -615,7 +639,7 @@ impl Profile {
                                                                 value: response,
                                                             },
                                                         })
-                                                    ))
+                                                    ));
                                                 }
                                             }
                                         }
