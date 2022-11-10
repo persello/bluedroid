@@ -20,7 +20,7 @@ exclude = [
 ]
 
 [package.metadata.esp-idf-sys]
-esp_idf_tools_install_dir = "out"
+# esp_idf_tools_install_dir = "out"
 
 [package.metadata.docs.rs]
 targets = ["riscv32imc-esp-espidf"]

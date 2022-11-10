@@ -83,20 +83,19 @@ impl Service {
             .cloned()
     }
 
-    pub(crate) fn get_descriptor_by_id(
-        &self,
-        id: esp_bt_uuid_t,
-    ) -> Option<Arc<RwLock<Descriptor>>> {
-        for characteristic in &self.characteristics {
-            #[allow(clippy::significant_drop_in_scrutinee)]
-            for descriptor in characteristic.read().unwrap().clone().descriptors {
-                if descriptor.read().unwrap().uuid == id.into() {
-                    return Some(descriptor);
-                }
-            }
-        }
-
-        None
+    pub(crate) fn get_descriptors_by_id(&self, id: esp_bt_uuid_t) -> Vec<Arc<RwLock<Descriptor>>> {
+        self.characteristics
+            .iter()
+            .filter_map(|characteristic| {
+                characteristic
+                    .read()
+                    .unwrap()
+                    .clone()
+                    .descriptors
+                    .into_iter()
+                    .find(|descriptor| descriptor.read().unwrap().uuid == id.into())
+            })
+            .collect()
     }
 
     pub(crate) fn register_self(&mut self, interface: u8) {

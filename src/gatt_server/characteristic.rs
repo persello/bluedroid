@@ -39,7 +39,7 @@ pub struct Characteristic {
     /// A buffer for keeping in memory the actual value of this characteristic.
     pub(crate) internal_value: Vec<u8>,
     /// The maximum length of the characteristic value.
-    max_value_length: u16,
+    max_value_length: Option<u16>,
     /// A copy of the `control` property, in the `esp_attr_control_t` type, passed directly to the Bluetooth stack.
     internal_control: esp_attr_control_t,
 }
@@ -60,7 +60,7 @@ impl Characteristic {
             properties: CharacteristicProperties::default(),
             control: AttributeControl::AutomaticResponse(vec![0]),
             internal_control: AttributeControl::AutomaticResponse(vec![0]).into(),
-            max_value_length: 8,
+            max_value_length: None,
         }
     }
 
@@ -92,7 +92,7 @@ impl Characteristic {
 
     /// Sets the maximum length for the content of this characteristic. The default value is 8 bytes.
     pub fn max_value_length(&mut self, length: u16) -> &mut Self {
-        self.max_value_length = length;
+        self.max_value_length = Some(length);
         self
     }
 
@@ -180,13 +180,19 @@ impl Characteristic {
     pub fn set_value<T: Into<Vec<u8>>>(&mut self, value: T) -> &mut Self {
         let value: Vec<u8> = value.into();
 
-        assert!(value.len() <= self.max_value_length as usize, "Value is too long for this characteristic and it can't be changed after starting the server.");
-
-        // If the characteristi hasn't been registered yet...
-        #[allow(clippy::cast_possible_truncation)]
-        if self.service_handle.is_none() {
-            // ...we can still change the value's maximum length.
-            self.max_value_length = value.len() as u16;
+        if let Some(max_value_length) = self.max_value_length {
+            if value.len() > max_value_length as usize {
+                panic!(
+                    "Value is too long for characteristic {}. The explicitly set maximum length is {} bytes.",
+                    self, max_value_length
+                );
+            }
+        } else if self.attribute_handle.is_some() && value.len() > self.internal_value.len() {
+            panic!(
+                "Value is too long for characteristic {}. The implicitly set maximum length is {} bytes.",
+                self,
+                self.internal_value.len()
+            );
         }
 
         self.internal_value = value;
@@ -249,7 +255,7 @@ impl Characteristic {
                 self.permissions.into(),
                 self.properties.into(),
                 leaky_box_raw!(esp_attr_value_t {
-                    attr_max_len: self.max_value_length,
+                    attr_max_len: self.max_value_length.unwrap_or(self.internal_value.len() as u16),
                     attr_len: self.internal_value.len() as u16,
                     attr_value: self.internal_value.as_mut_slice().as_mut_ptr(),
                 }),
