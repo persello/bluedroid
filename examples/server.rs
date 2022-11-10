@@ -9,7 +9,7 @@ use lazy_static::lazy_static;
 use log::info;
 
 lazy_static! {
-    static ref VALUE: RwLock<Vec<u8>> = RwLock::new("Initial value".as_bytes().to_vec());
+    static ref VALUE: RwLock<Vec<u8>> = RwLock::new("Initial value.".as_bytes().to_vec());
 }
 
 fn main() {
@@ -42,6 +42,18 @@ fn main() {
     .set_value("Initial value.".as_bytes().to_vec())
     .build();
 
+    // A characteristic that notifies every second.
+    let indicating_characteristic = Characteristic::new(BleUuid::from_uuid128_string(
+        "c41d6f80-1a2c-11e9-ab14-d663bd873d93",
+    ))
+    .name("Indicating Characteristic")
+    .permissions(AttributePermissions::new().read())
+    .properties(CharacteristicProperties::new().read().indicate())
+    .max_value_length(20)
+    .show_name()
+    .set_value("Initial value.".as_bytes().to_vec())
+    .build();
+
     // A writable characteristic.
     let writable_characteristic = Characteristic::new(BleUuid::from_uuid128_string(
         "3c9a3f00-8ed3-4bdf-8a39-a01bebede295",
@@ -67,6 +79,7 @@ fn main() {
     .primary()
     .characteristic(&static_characteristic)
     .characteristic(&notifying_characteristic)
+    .characteristic(&indicating_characteristic)
     .characteristic(&writable_characteristic)
     .build();
 
@@ -89,6 +102,10 @@ fn main() {
         loop {
             counter += 1;
             notifying_characteristic
+                .write()
+                .unwrap()
+                .set_value(format!("Counter: {}", counter).as_bytes().to_vec());
+            indicating_characteristic
                 .write()
                 .unwrap()
                 .set_value(format!("Counter: {}", counter).as_bytes().to_vec());
