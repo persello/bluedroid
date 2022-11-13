@@ -110,7 +110,7 @@ impl Service {
             esp_nofail!(esp_ble_gatts_create_service(
                 interface,
                 leaky_box_raw!(id),
-                64, // TODO: count the number of characteristics and descriptors.
+                128, // TODO: count the number of characteristics and descriptors.
             ));
         }
     }
@@ -128,28 +128,15 @@ impl Service {
         // Loghi docet.
 
         let service_handle = self.handle.unwrap();
-        let characteristics = self.characteristics.iter().cloned().zip(0..);
-        let current_index = Arc::new(RwLock::new(0));
-
-        for (characteristic, index) in characteristics {
-            let i = current_index.clone();
-            std::thread::spawn(move || {
-                while *i.read().unwrap() != index {
+        let characteristics = self.characteristics.clone();
+        std::thread::spawn(move || {
+            for c in characteristics {
+                c.write().unwrap().register_self(service_handle);
+                while c.read().unwrap().attribute_handle.is_none() {
                     std::thread::yield_now();
                 }
-
-                characteristic
-                    .write()
-                    .unwrap()
-                    .register_self(service_handle);
-
-                while characteristic.read().unwrap().attribute_handle.is_none() {
-                    std::thread::yield_now();
-                }
-
-                *i.write().unwrap() += 1;
-            });
-        }
+            }
+        });
     }
 }
 
