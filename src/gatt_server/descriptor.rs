@@ -56,9 +56,9 @@ impl Descriptor {
     }
 
     /// Sets the read callback for the [`Descriptor`].
-    pub fn on_read(
+    pub fn on_read<C: Fn(esp_ble_gatts_cb_param_t_gatts_read_evt_param) -> Vec<u8> + Send + Sync + 'static>(
         &mut self,
-        callback: fn(esp_ble_gatts_cb_param_t_gatts_read_evt_param) -> Vec<u8>,
+        callback: C,
     ) -> &mut Self {
         if !self.permissions.read_access {
             warn!(
@@ -69,7 +69,7 @@ impl Descriptor {
             return self;
         }
 
-        self.control = AttributeControl::ResponseByApp(callback);
+        self.control = AttributeControl::ResponseByApp(Arc::new(callback));
         self.internal_control = self.control.clone().into();
 
         self

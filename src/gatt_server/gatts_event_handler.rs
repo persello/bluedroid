@@ -1,4 +1,4 @@
-#![allow(clippy::too_many_lines, clippy::if_not_else)]
+#![allow(clippy::too_many_lines)]
 
 use crate::{
     gatt_server::{GattServer, Profile},
@@ -300,15 +300,15 @@ impl Profile {
                 let param = unsafe { (*param).reg };
 
                 // Check status
-                if param.status != esp_bt_status_t_ESP_BT_STATUS_SUCCESS {
-                    warn!("GATT profile registration failed.");
-                } else {
+                if param.status == esp_bt_status_t_ESP_BT_STATUS_SUCCESS {
                     info!(
                         "{} registered on interface {}.",
                         &self,
                         self.interface.unwrap()
                     );
                     self.register_services();
+                } else {
+                    warn!("GATT profile registration failed.");
                 }
             }
             esp_gatts_cb_event_t_ESP_GATTS_CREATE_EVT => {
@@ -317,9 +317,7 @@ impl Profile {
                 if let Some(service) = self.get_service_by_id(param.service_id.id) {
                     service.write().unwrap().handle = Some(param.service_handle);
 
-                    if param.status != esp_gatt_status_t_ESP_GATT_OK {
-                        warn!("GATT service registration failed.");
-                    } else {
+                    if param.status == esp_gatt_status_t_ESP_GATT_OK {
                         info!(
                             "GATT service {} registered on handle 0x{:04x}.",
                             service.read().unwrap(),
@@ -333,6 +331,8 @@ impl Profile {
                         }
 
                         service.write().unwrap().register_characteristics();
+                    } else {
+                        warn!("GATT service registration failed.");
                     }
                 } else {
                     warn!("Cannot find service with service identifier {} received in service creation event.", BleUuid::from(param.service_id.id));
@@ -342,10 +342,10 @@ impl Profile {
                 let param = unsafe { (*param).start };
 
                 if let Some(service) = self.get_service(param.service_handle) {
-                    if param.status != esp_gatt_status_t_ESP_GATT_OK {
-                        warn!("GATT service {} failed to start.", service.read().unwrap());
-                    } else {
+                    if param.status == esp_gatt_status_t_ESP_GATT_OK {
                         debug!("GATT service {} started.", service.read().unwrap());
+                    } else {
+                        warn!("GATT service {} failed to start.", service.read().unwrap());
                     }
                 } else {
                     warn!("Cannot find service described by handle 0x{:04x} received in service start event.", param.service_handle);
@@ -360,9 +360,7 @@ impl Profile {
                         .unwrap()
                         .get_characteristic_by_id(param.char_uuid)
                     {
-                        if param.status != esp_gatt_status_t_ESP_GATT_OK {
-                            warn!("GATT characteristic registration failed.");
-                        } else {
+                        if param.status == esp_gatt_status_t_ESP_GATT_OK {
                             info!(
                                 "GATT characteristic {} registered at attribute handle 0x{:04x}.",
                                 characteristic.read().unwrap(),
@@ -371,6 +369,8 @@ impl Profile {
                             characteristic.write().unwrap().attribute_handle =
                                 Some(param.attr_handle);
                             characteristic.write().unwrap().register_descriptors();
+                        } else {
+                            warn!("GATT characteristic registration failed.");
                         }
                     } else {
                         warn!("Cannot find characteristic described by service handle 0x{:04x} and characteristic identifier {} received in characteristic creation event.", param.service_handle, BleUuid::from(param.char_uuid));
@@ -393,15 +393,15 @@ impl Profile {
                         .iter()
                         .find(|d| d.read().unwrap().attribute_handle.is_none())
                     {
-                        if param.status != esp_gatt_status_t_ESP_GATT_OK {
-                            warn!("GATT descriptor registration failed.");
-                        } else {
+                        if param.status == esp_gatt_status_t_ESP_GATT_OK {
                             info!(
                                 "GATT descriptor {} registered at attribute handle 0x{:04x}.",
                                 descriptor.read().unwrap(),
                                 param.attr_handle
                             );
                             descriptor.write().unwrap().attribute_handle = Some(param.attr_handle);
+                        } else {
+                            warn!("GATT descriptor registration failed.");
                         }
                     } else {
                         warn!("Cannot find service described by identifier {} received in descriptor creation event.", BleUuid::from(param.descr_uuid));
@@ -423,7 +423,7 @@ impl Profile {
 
                             // If the characteristic has a write handler, call it.
                             if let Some(write_callback) =
-                                characteristic.read().unwrap().write_callback
+                                &characteristic.read().unwrap().write_callback
                             {
                                 let value = unsafe {
                                     std::slice::from_raw_parts(param.value, param.len as usize)
@@ -434,7 +434,7 @@ impl Profile {
 
                                 // Send response if needed.
                                 if param.need_rsp {
-                                    if let AttributeControl::ResponseByApp(read_callback) = characteristic.read().unwrap().control {
+                                    if let AttributeControl::ResponseByApp(read_callback) = &characteristic.read().unwrap().control {
 
                                     // Simulate a read operation.
                                     let param_as_read_operation = esp_ble_gatts_cb_param_t_gatts_read_evt_param {
@@ -494,7 +494,7 @@ impl Profile {
 
                                             // Send response if needed.
                                             if param.need_rsp {
-                                                if let AttributeControl::ResponseByApp(read_callback) = descriptor.read().unwrap().control {
+                                                if let AttributeControl::ResponseByApp(read_callback) = &descriptor.read().unwrap().control {
 
                                                 // Simulate a read operation.
                                                 let param_as_read_operation = esp_ble_gatts_cb_param_t_gatts_read_evt_param {
@@ -544,11 +544,6 @@ impl Profile {
             esp_gatts_cb_event_t_ESP_GATTS_READ_EVT => {
                 let param = unsafe { (*param).read };
 
-                debug!(
-                    "MCC: Received read event for handle 0x{:04x}.",
-                    param.handle
-                );
-
                 for service in &self.services {
                     service
                         .read()
@@ -571,7 +566,7 @@ impl Profile {
 
                                 // If the characteristic has a read handler, call it.
                                 if let AttributeControl::ResponseByApp(callback) =
-                                    characteristic.read().unwrap().control
+                                    &characteristic.read().unwrap().control
                                 {
                                     let value = callback(param);
 
@@ -616,7 +611,7 @@ impl Profile {
                                             );
 
                                             if let AttributeControl::ResponseByApp(callback) =
-                                                descriptor.read().unwrap().control
+                                                &descriptor.read().unwrap().control
                                             {
                                                 let value = callback(param);
 
