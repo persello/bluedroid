@@ -149,8 +149,8 @@ impl From<esp_gatt_id_t> for BleUuid {
 impl std::fmt::Display for BleUuid {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Uuid16(uuid) => write!(f, "0x{:04x}", uuid),
-            Self::Uuid32(uuid) => write!(f, "0x{:08x}", uuid),
+            Self::Uuid16(uuid) => write!(f, "0x{uuid:04x}"),
+            Self::Uuid32(uuid) => write!(f, "0x{uuid:08x}"),
             Self::Uuid128(uuid) => {
                 let mut uuid = *uuid;
                 uuid.reverse();
@@ -158,14 +158,14 @@ impl std::fmt::Display for BleUuid {
                 let mut uuid_str = String::new();
 
                 for byte in &uuid {
-                    uuid_str.push_str(&format!("{:02x}", byte));
+                    uuid_str.push_str(&format!("{byte:02x}"));
                 }
                 uuid_str.insert(8, '-');
                 uuid_str.insert(13, '-');
                 uuid_str.insert(18, '-');
                 uuid_str.insert(23, '-');
 
-                write!(f, "{}", uuid_str)
+                write!(f, "{uuid_str}")
             }
         }
     }
@@ -173,6 +173,6 @@ impl std::fmt::Display for BleUuid {
 
 impl std::fmt::Debug for BleUuid {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self)
+        write!(f, "{self}")
     }
 }

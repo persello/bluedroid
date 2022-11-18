@@ -15,15 +15,17 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+type WriteCallback = dyn Fn(Vec<u8>, esp_ble_gatts_cb_param_t_gatts_write_evt_param) + Send + Sync;
+
 /// Represents a GATT characteristic.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Characteristic {
     /// The name of the characteristic, for debugging purposes.
     name: Option<String>,
     /// The characteristic identifier.
     pub(crate) uuid: BleUuid,
     /// The function to be called when a write happens. This functions receives the written value in the first parameter, a `Vec<u8>`.
-    pub(crate) write_callback: Option<fn(Vec<u8>, esp_ble_gatts_cb_param_t_gatts_write_evt_param)>,
+    pub(crate) write_callback: Option<Arc<WriteCallback>>,
     /// A list of descriptors for this characteristic.
     pub(crate) descriptors: Vec<Arc<RwLock<Descriptor>>>,
     /// The handle that the Bluetooth stack assigned to this characteristic.
@@ -130,7 +132,7 @@ impl Characteristic {
     /// It is up to the library user to decode the data into a meaningful format.
     pub fn on_write(
         &mut self,
-        callback: fn(Vec<u8>, esp_ble_gatts_cb_param_t_gatts_write_evt_param),
+        callback: impl Fn(Vec<u8>, esp_ble_gatts_cb_param_t_gatts_write_evt_param) + Send + Sync + 'static,
     ) -> &mut Self {
         if !((self.properties.write || self.properties.write_without_response)
             && self.permissions.write_access)
@@ -143,7 +145,7 @@ impl Characteristic {
             return self;
         }
 
-        self.write_callback = Some(callback);
+        self.write_callback = Some(Arc::new(callback));
         self
     }
 
@@ -315,5 +317,25 @@ impl std::fmt::Display for Characteristic {
                 .unwrap_or_else(|| "Unnamed characteristic".to_string()),
             self.uuid
         )
+    }
+}
+
+impl std::fmt::Debug for Characteristic {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        // Debug representation of a characteristic.
+        f.debug_struct("Characteristic")
+            .field("name", &self.name)
+            .field("uuid", &self.uuid)
+            .field("write_callback", &self.write_callback.is_some())
+            .field("descriptors", &self.descriptors)
+            .field("attribute_handle", &self.attribute_handle)
+            .field("service_handle", &self.service_handle)
+            .field("permissions", &self.permissions)
+            .field("properties", &self.properties)
+            .field("control", &self.control)
+            .field("internal_value", &self.internal_value)
+            .field("max_value_length", &self.max_value_length)
+            .field("internal_control", &self.internal_control)
+            .finish()
     }
 }
