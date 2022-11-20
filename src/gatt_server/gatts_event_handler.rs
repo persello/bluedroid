@@ -7,7 +7,7 @@ use crate::{
 };
 
 use esp_idf_sys::{
-    esp_ble_gap_config_adv_data, esp_ble_gap_set_device_name, esp_ble_gap_start_advertising,
+    esp, esp_ble_gap_config_adv_data, esp_ble_gap_set_device_name, esp_ble_gap_start_advertising,
     esp_ble_gatts_cb_param_t, esp_ble_gatts_cb_param_t_gatts_read_evt_param,
     esp_ble_gatts_get_attr_value, esp_ble_gatts_send_indicate, esp_ble_gatts_send_response,
     esp_ble_gatts_start_service, esp_bt_status_t_ESP_BT_STATUS_SUCCESS, esp_gatt_if_t,
@@ -169,15 +169,22 @@ impl GattServer {
                                                 .unwrap()
                                                 .internal_value
                                                 .clone();
-                                            unsafe {
-                                                esp_nofail!(esp_ble_gatts_send_indicate(
+                                            let result = unsafe {
+                                                esp!(esp_ble_gatts_send_indicate(
                                                     gatts_if,
                                                     connection.id,
                                                     param.attr_handle,
                                                     internal_value.len() as u16,
                                                     internal_value.as_mut_slice().as_mut_ptr(),
                                                     true
-                                                ));
+                                                ))
+                                            };
+
+                                            if result.is_err() {
+                                                warn!(
+                                                    "Failed to indicate value change: {}.",
+                                                    result.err().unwrap()
+                                                );
                                             }
                                         }
                                     }
@@ -222,15 +229,22 @@ impl GattServer {
                                                 .unwrap()
                                                 .internal_value
                                                 .clone();
-                                            unsafe {
-                                                esp_nofail!(esp_ble_gatts_send_indicate(
+                                            let result = unsafe {
+                                                esp!(esp_ble_gatts_send_indicate(
                                                     gatts_if,
                                                     connection.id,
                                                     param.attr_handle,
                                                     internal_value.len() as u16,
                                                     internal_value.as_mut_slice().as_mut_ptr(),
                                                     false
-                                                ));
+                                                ))
+                                            };
+
+                                            if result.is_err() {
+                                                warn!(
+                                                    "Failed to notify value change: {}.",
+                                                    result.err().unwrap()
+                                                );
                                             }
                                         }
                                     }
