@@ -1,8 +1,9 @@
+use std::sync::Arc;
 use esp_idf_sys::*;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub(crate) enum AttributeControl {
-    ResponseByApp(fn(esp_ble_gatts_cb_param_t_gatts_read_evt_param) -> Vec<u8>),
+    ResponseByApp(Arc<dyn Fn(esp_ble_gatts_cb_param_t_gatts_read_evt_param) -> Vec<u8> + Send + Sync>),
     AutomaticResponse(Vec<u8>),
 }
 
@@ -15,5 +16,14 @@ impl From<AttributeControl> for esp_attr_control_t {
         };
 
         Self { auto_rsp: result }
+    }
+}
+
+impl std::fmt::Debug for AttributeControl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AttributeControl::AutomaticResponse(_) => write!(f, "automatic response"),
+            AttributeControl::ResponseByApp(_) => write!(f, "response by app"),
+        }
     }
 }

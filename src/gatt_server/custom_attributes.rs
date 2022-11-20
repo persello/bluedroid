@@ -12,7 +12,7 @@ use lazy_static::lazy_static;
 use log::debug;
 
 lazy_static! {
-    static ref STORAGE: Mutex<EspNvsStorage> = Mutex::new(
+    static ref STORAGE: Arc<Mutex<EspNvsStorage>> = Arc::new(Mutex::new(
         EspNvsStorage::new_default(
             Arc::new(
                 EspDefaultNvs::new()
@@ -22,7 +22,7 @@ lazy_static! {
             true
         )
         .expect("Cannot create a new NVS storage. Did you declare an NVS partition?")
-    );
+    ));
 }
 
 impl Descriptor {
@@ -53,36 +53,38 @@ impl Descriptor {
         Self::new(BleUuid::from_uuid16(0x2902))
             .name("Client Characteristic Configuration")
             .permissions(AttributePermissions::new().read().write())
-            .on_read(|param| {
-                let storage = STORAGE.lock().unwrap();
+            .on_read(
+                |param: esp_idf_sys::esp_ble_gatts_cb_param_t_gatts_read_evt_param| {
+                    let storage = STORAGE.lock().unwrap();
 
-                // Get the descriptor handle.
+                    // Get the descriptor handle.
 
-                // TODO: Find the characteristic that contains the handle.
-                // WARNING: Using the handle is incredibly stupid as the NVS is not erased across flashes.
+                    // TODO: Find the characteristic that contains the handle.
+                    // WARNING: Using the handle is incredibly stupid as the NVS is not erased across flashes.
 
-            // Create a key from the connection address.
-            let key = format!(
-                "{:02X}{:02X}{:02X}{:02X}-{:04X}",
-                /* param.bda[1], */ param.bda[2],
-                param.bda[3],
-                param.bda[4],
-                param.bda[5],
-                param.handle
-            );
+                    // Create a key from the connection address.
+                    let key = format!(
+                        "{:02X}{:02X}{:02X}{:02X}-{:04X}",
+                        /* param.bda[1], */ param.bda[2],
+                        param.bda[3],
+                        param.bda[4],
+                        param.bda[5],
+                        param.handle
+                    );
 
-            // Prepare buffer and read correct CCCD value from non-volatile storage.
-            let mut buf: [u8; 2] = [0; 2];
-            if let Some(value) = storage.get_raw(&key, &mut buf).unwrap() {
-                debug!("Read CCCD value: {:?} for key {}.", value, key);
-                value.0.to_vec()
-            } else {
-                debug!("No CCCD value found for key {}.", key);
-                vec![0, 0]
-            }
-        })
-        .on_write(|value, param| {
-            let mut storage = STORAGE.lock().unwrap();
+                    // Prepare buffer and read correct CCCD value from non-volatile storage.
+                    let mut buf: [u8; 2] = [0; 2];
+                    if let Some(value) = storage.get_raw(&key, &mut buf).unwrap() {
+                        debug!("Read CCCD value: {:?} for key {}.", value, key);
+                        value.0.to_vec()
+                    } else {
+                        debug!("No CCCD value found for key {}.", key);
+                        vec![0, 0]
+                    }
+                },
+            )
+            .on_write(|value, param| {
+                let mut storage = STORAGE.lock().unwrap();
 
                 // Create a key from the connection address.
                 let key = format!(

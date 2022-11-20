@@ -15,15 +15,17 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+type WriteCallback = dyn Fn(Vec<u8>, esp_ble_gatts_cb_param_t_gatts_write_evt_param) + Send + Sync;
+
 /// Represents a GATT characteristic.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Characteristic {
     /// The name of the characteristic, for debugging purposes.
     name: Option<String>,
     /// The characteristic identifier.
     pub(crate) uuid: BleUuid,
     /// The function to be called when a write happens. This functions receives the written value in the first parameter, a `Vec<u8>`.
-    pub(crate) write_callback: Option<fn(Vec<u8>, esp_ble_gatts_cb_param_t_gatts_write_evt_param)>,
+    pub(crate) write_callback: Option<Arc<WriteCallback>>,
     /// A list of descriptors for this characteristic.
     pub(crate) descriptors: Vec<Arc<RwLock<Descriptor>>>,
     /// The handle that the Bluetooth stack assigned to this characteristic.
@@ -104,9 +106,9 @@ impl Characteristic {
     /// # Notes
     ///
     /// The callback will be called from the Bluetooth stack's context, so it must not block.
-    pub fn on_read(
+    pub fn on_read<C: Fn(esp_ble_gatts_cb_param_t_gatts_read_evt_param) -> Vec<u8> + Send + Sync + 'static>(
         &mut self,
-        callback: fn(esp_ble_gatts_cb_param_t_gatts_read_evt_param) -> Vec<u8>,
+        callback: C,
     ) -> &mut Self {
         if !self.properties.read || !self.permissions.read_access {
             warn!(
@@ -117,7 +119,7 @@ impl Characteristic {
             return self;
         }
 
-        self.control = AttributeControl::ResponseByApp(callback);
+        self.control = AttributeControl::ResponseByApp(Arc::new(callback));
         self.internal_control = self.control.clone().into();
 
         self
@@ -130,7 +132,7 @@ impl Characteristic {
     /// It is up to the library user to decode the data into a meaningful format.
     pub fn on_write(
         &mut self,
-        callback: fn(Vec<u8>, esp_ble_gatts_cb_param_t_gatts_write_evt_param),
+        callback: impl Fn(Vec<u8>, esp_ble_gatts_cb_param_t_gatts_write_evt_param) + Send + Sync + 'static,
     ) -> &mut Self {
         if !((self.properties.write || self.properties.write_without_response)
             && self.permissions.write_access)
@@ -143,7 +145,7 @@ impl Characteristic {
             return self;
         }
 
-        self.write_callback = Some(callback);
+        self.write_callback = Some(Arc::new(callback));
         self
     }
 
@@ -298,7 +300,7 @@ impl Characteristic {
             .iter()
             .find(|desc| desc.read().unwrap().uuid == BleUuid::Uuid16(0x2902))
         {
-            if let AttributeControl::ResponseByApp(callback) = cccd.read().unwrap().control {
+            if let AttributeControl::ResponseByApp(callback) = &cccd.read().unwrap().control {
                 let value = callback(param);
 
                 return Some((
@@ -322,5 +324,25 @@ impl std::fmt::Display for Characteristic {
                 .unwrap_or_else(|| "Unnamed characteristic".to_string()),
             self.uuid
         )
+    }
+}
+
+impl std::fmt::Debug for Characteristic {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        // Debug representation of a characteristic.
+        f.debug_struct("Characteristic")
+            .field("name", &self.name)
+            .field("uuid", &self.uuid)
+            .field("write_callback", &self.write_callback.is_some())
+            .field("descriptors", &self.descriptors)
+            .field("attribute_handle", &self.attribute_handle)
+            .field("service_handle", &self.service_handle)
+            .field("permissions", &self.permissions)
+            .field("properties", &self.properties)
+            .field("control", &self.control)
+            .field("internal_value", &self.internal_value)
+            .field("max_value_length", &self.max_value_length)
+            .field("internal_control", &self.internal_control)
+            .finish()
     }
 }

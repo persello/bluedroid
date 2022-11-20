@@ -1,22 +1,20 @@
-use std::sync::RwLock;
+use std::sync::{RwLock, Arc};
 
 use bluedroid::{
     gatt_server::{Characteristic, Profile, Service, GLOBAL_GATT_SERVER},
     utilities::{AttributePermissions, BleUuid, CharacteristicProperties},
 };
 
-use lazy_static::lazy_static;
 use log::info;
-
-lazy_static! {
-    static ref VALUE: RwLock<Vec<u8>> = RwLock::new("Initial value.".as_bytes().to_vec());
-}
 
 fn main() {
     esp_idf_sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
 
     info!("Logger initialised.");
+
+    let char_value_write: Arc<RwLock<Vec<u8>>> = Arc::new(RwLock::new("Initial value".as_bytes().to_vec()));
+    let char_value_read = char_value_write.clone();
 
     // A static characteristic.
     let static_characteristic = Characteristic::new(BleUuid::from_uuid128_string(
@@ -61,13 +59,13 @@ fn main() {
     .name("Writable Characteristic")
     .permissions(AttributePermissions::new().read().write())
     .properties(CharacteristicProperties::new().read().write())
-    .on_read(|_param| {
+    .on_read(move |_param| {
         info!("Read from writable characteristic.");
-        return VALUE.read().unwrap().clone();
+        return char_value_read.read().unwrap().clone();
     })
-    .on_write(|value, _param| {
+    .on_write(move |value, _param| {
         info!("Wrote to writable characteristic: {:?}", value);
-        *VALUE.write().unwrap() = value;
+        *char_value_write.write().unwrap() = value;
     })
     .show_name()
     .build();
