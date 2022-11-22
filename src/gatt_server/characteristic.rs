@@ -106,7 +106,9 @@ impl Characteristic {
     /// # Notes
     ///
     /// The callback will be called from the Bluetooth stack's context, so it must not block.
-    pub fn on_read<C: Fn(esp_ble_gatts_cb_param_t_gatts_read_evt_param) -> Vec<u8> + Send + Sync + 'static>(
+    pub fn on_read<
+        C: Fn(esp_ble_gatts_cb_param_t_gatts_read_evt_param) -> Vec<u8> + Send + Sync + 'static,
+    >(
         &mut self,
         callback: C,
     ) -> &mut Self {
@@ -132,7 +134,10 @@ impl Characteristic {
     /// It is up to the library user to decode the data into a meaningful format.
     pub fn on_write(
         &mut self,
-        callback: impl Fn(Vec<u8>, esp_ble_gatts_cb_param_t_gatts_write_evt_param) + Send + Sync + 'static,
+        callback: impl Fn(Vec<u8>, esp_ble_gatts_cb_param_t_gatts_write_evt_param)
+            + Send
+            + Sync
+            + 'static,
     ) -> &mut Self {
         if !((self.properties.write || self.properties.write_without_response)
             && self.permissions.write_access)
@@ -258,7 +263,9 @@ impl Characteristic {
                 self.permissions.into(),
                 self.properties.into(),
                 leaky_box_raw!(esp_attr_value_t {
-                    attr_max_len: self.max_value_length.unwrap_or(self.internal_value.len() as u16),
+                    attr_max_len: self
+                        .max_value_length
+                        .unwrap_or(self.internal_value.len() as u16),
                     attr_len: self.internal_value.len() as u16,
                     attr_value: self.internal_value.as_mut_slice().as_mut_ptr(),
                 }),
