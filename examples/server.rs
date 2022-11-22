@@ -5,6 +5,7 @@ use bluedroid::{
     utilities::{AttributePermissions, BleUuid, CharacteristicProperties},
 };
 
+use esp_idf_sys::{esp_get_free_heap_size, esp_get_free_internal_heap_size};
 use log::info;
 
 fn main() {
@@ -108,6 +109,16 @@ fn main() {
                 .unwrap()
                 .set_value(format!("Counter: {}", counter).as_bytes().to_vec());
             std::thread::sleep(std::time::Duration::from_secs(1));
+        }
+    });
+
+    std::thread::spawn(|| loop {
+        std::thread::sleep(std::time::Duration::from_millis(500));
+
+        unsafe {
+            let x = esp_get_free_heap_size();
+            let y = esp_get_free_internal_heap_size();
+            log::info!("Free heap: {} bytes, free internal heap: {} bytes", x, y);
         }
     });
 
