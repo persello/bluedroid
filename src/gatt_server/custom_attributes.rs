@@ -6,18 +6,15 @@ use crate::{
 };
 
 use embedded_svc::storage::RawStorage;
-use esp_idf_svc::nvs::EspDefaultNvs;
-use esp_idf_svc::nvs_storage::EspNvsStorage;
+use esp_idf_svc::nvs::{EspDefaultNvs, EspDefaultNvsPartition};
 use lazy_static::lazy_static;
 use log::debug;
 
 lazy_static! {
-    static ref STORAGE: Arc<Mutex<EspNvsStorage>> = Arc::new(Mutex::new(
-        EspNvsStorage::new_default(
-            Arc::new(
-                EspDefaultNvs::new()
-                    .expect("Cannot initialise the default NVS. Did you declare an NVS partition?")
-            ),
+    static ref STORAGE: Arc<Mutex<EspDefaultNvs>> = Arc::new(Mutex::new(
+        EspDefaultNvs::new(
+            EspDefaultNvsPartition::take()
+                .expect("Cannot initialise the default NVS. Did you declare an NVS partition?"),
             "ble",
             true
         )
@@ -76,7 +73,7 @@ impl Descriptor {
                     let mut buf: [u8; 2] = [0; 2];
                     if let Some(value) = storage.get_raw(&key, &mut buf).unwrap() {
                         debug!("Read CCCD value: {:?} for key {}.", value, key);
-                        value.0.to_vec()
+                        value.to_vec()
                     } else {
                         debug!("No CCCD value found for key {}.", key);
                         vec![0, 0]
@@ -100,7 +97,7 @@ impl Descriptor {
 
                 // Write CCCD value to non-volatile storage.
                 storage
-                    .put_raw(&key, &value)
+                    .set_raw(&key, &value)
                     .expect("Cannot put raw value to the NVS. Did you declare an NVS partition?");
             })
             .clone()
