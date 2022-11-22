@@ -1,4 +1,4 @@
-use std::sync::{RwLock, Arc};
+use std::sync::{Arc, RwLock};
 
 use bluedroid::{
     gatt_server::{Characteristic, Profile, Service, GLOBAL_GATT_SERVER},
@@ -14,7 +14,8 @@ fn main() {
 
     info!("Logger initialised.");
 
-    let char_value_write: Arc<RwLock<Vec<u8>>> = Arc::new(RwLock::new("Initial value".as_bytes().to_vec()));
+    let char_value_write: Arc<RwLock<Vec<u8>>> =
+        Arc::new(RwLock::new("Initial value".as_bytes().to_vec()));
     let char_value_read = char_value_write.clone();
 
     // A static characteristic.
