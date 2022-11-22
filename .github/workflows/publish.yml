@@ -1,6 +1,8 @@
 name: publish
 
-on: [release]
+on:
+  release:
+    types: [published]
 
 env:
   rust_toolchain: nightly
