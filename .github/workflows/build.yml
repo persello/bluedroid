@@ -47,13 +47,26 @@ jobs:
         with:
           command: fmt
           args: -- --check
-      - name: Clippy
-        uses: actions-rs/cargo@v1
+        continue-on-error: true
+      # - name: Clippy
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: clippy
+      #     args: --no-deps --target riscv32imc-esp-espidf -Zbuild-std=std,panic_abort -Zbuild-std-features=panic_immediate_abort -- -Dwarnings
+      #   continue-on-error: true
+      - name: Clippy with comments
+        uses: actions-rs/clippy-check@v1
         with:
-          command: clippy
+          token: ${{ secrets.GITHUB_TOKEN }}
           args: --no-deps --target riscv32imc-esp-espidf -Zbuild-std=std,panic_abort -Zbuild-std-features=panic_immediate_abort -- -Dwarnings
+        continue-on-error: true
       - name: Build
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --target riscv32imc-esp-espidf -Zbuild-std=std,panic_abort -Zbuild-std-features=panic_immediate_abort
+      - name: Build examples
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --examples --target riscv32imc-esp-espidf -Zbuild-std=std,panic_abort -Zbuild-std-features=panic_immediate_abort
