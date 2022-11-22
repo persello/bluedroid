@@ -56,7 +56,9 @@ impl Descriptor {
     }
 
     /// Sets the read callback for the [`Descriptor`].
-    pub fn on_read<C: Fn(esp_ble_gatts_cb_param_t_gatts_read_evt_param) -> Vec<u8> + Send + Sync + 'static>(
+    pub fn on_read<
+        C: Fn(esp_ble_gatts_cb_param_t_gatts_read_evt_param) -> Vec<u8> + Send + Sync + 'static,
+    >(
         &mut self,
         callback: C,
     ) -> &mut Self {
