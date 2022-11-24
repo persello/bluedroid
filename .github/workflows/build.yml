@@ -6,7 +6,64 @@ env:
   rust_toolchain: nightly
 
 jobs:
-  compile:
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      
+      - name: Remove `rust-toolchain.toml`
+        run: rm rust-toolchain.toml
+
+      - name: Setup
+        uses: pulse-loop/esp32-rust-action@v1
+      
+      # - name: Cache
+      #   uses: actions/cache@v2
+      #   with:
+      #     path: |
+      #       ~/.cargo/registry
+      #       ~/.cargo/git
+      #       target
+      #     key: format
+          
+      - name: Format
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: -- --check
+  
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      
+      - name: Remove `rust-toolchain.toml`
+        run: rm rust-toolchain.toml
+
+      - name: Setup
+        uses: pulse-loop/esp32-rust-action@v1
+      
+      - name: Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: clippy
+
+      - name: Clippy
+        uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --no-deps --target riscv32imc-esp-espidf -Zbuild-std=std,panic_abort -Zbuild-std-features=panic_immediate_abort
+        continue-on-error: true
+
+  build:
     name: Build
     runs-on: ubuntu-latest
     steps:
@@ -15,6 +72,9 @@ jobs:
       
       - name: Remove `rust-toolchain.toml`
         run: rm rust-toolchain.toml
+
+      - name: Setup
+        uses: pulse-loop/esp32-rust-action@v1
       
       - name: Cache
         uses: actions/cache@v2
@@ -22,48 +82,8 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            ~/.cargo/bin
             target
-          key: bluedroid-build
-      
-      - name: Python setup
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.10.8
-      
-      - name: Install libclang
-        run: sudo apt update && sudo apt-get install clang libclang-dev -y
-      
-      - name: Rust setup
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ env.rust_toolchain }}
-          components: rustfmt, clippy #, rust-src
-          default: true
-      
-      - name: Install `rust-src`
-        run: rustup component add rust-src --toolchain ${{ env.rust_toolchain }}-x86_64-unknown-linux-gnu
-      
-      - name: Install `ldproxy`
-        uses: actions-rs/install@v0.1
-        with:
-          crate: ldproxy
-          version: latest
-          use-tool-cache: true
-        continue-on-error: true
-      
-      - name: Format check
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: -- --check
-      
-      - name: Clippy with comments
-        uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --no-deps --target riscv32imc-esp-espidf -Zbuild-std=std,panic_abort -Zbuild-std-features=panic_immediate_abort
-        continue-on-error: true
+          key: build
       
       - name: Build
         uses: actions-rs/cargo@v1
@@ -71,6 +91,28 @@ jobs:
           command: build
           args: --target riscv32imc-esp-espidf -Zbuild-std=std,panic_abort -Zbuild-std-features=panic_immediate_abort
       
+  examples:
+    name: Build examples
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      
+      - name: Remove `rust-toolchain.toml`
+        run: rm rust-toolchain.toml
+
+      - name: Setup
+        uses: pulse-loop/esp32-rust-action@v1
+      
+      - name: Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: examples
+
       - name: Build examples
         uses: actions-rs/cargo@v1
         with:
