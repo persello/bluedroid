@@ -1,10 +1,11 @@
-use std::sync::{RwLock, Arc};
+use std::sync::{Arc, RwLock};
 
 use bluedroid::{
     gatt_server::{Characteristic, Profile, Service, GLOBAL_GATT_SERVER},
     utilities::{AttributePermissions, BleUuid, CharacteristicProperties},
 };
 
+use esp_idf_sys::{esp_get_free_heap_size, esp_get_free_internal_heap_size};
 use log::info;
 
 fn main() {
@@ -13,7 +14,8 @@ fn main() {
 
     info!("Logger initialised.");
 
-    let char_value_write: Arc<RwLock<Vec<u8>>> = Arc::new(RwLock::new("Initial value".as_bytes().to_vec()));
+    let char_value_write: Arc<RwLock<Vec<u8>>> =
+        Arc::new(RwLock::new("Initial value".as_bytes().to_vec()));
     let char_value_read = char_value_write.clone();
 
     // A static characteristic.
@@ -108,6 +110,16 @@ fn main() {
                 .unwrap()
                 .set_value(format!("Counter: {}", counter).as_bytes().to_vec());
             std::thread::sleep(std::time::Duration::from_secs(1));
+        }
+    });
+
+    std::thread::spawn(|| loop {
+        std::thread::sleep(std::time::Duration::from_millis(500));
+
+        unsafe {
+            let x = esp_get_free_heap_size();
+            let y = esp_get_free_internal_heap_size();
+            log::info!("Free heap: {} bytes, free internal heap: {} bytes", x, y);
         }
     });
 

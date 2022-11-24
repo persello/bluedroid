@@ -468,21 +468,23 @@ impl Profile {
                                     let mut response = [0u8; 600];
                                     response[..value.len()].copy_from_slice(&value);
 
+                                    let mut esp_rsp = esp_gatt_rsp_t {
+                                        attr_value: esp_gatt_value_t {
+                                            auth_req: 0,
+                                            handle: param.handle,
+                                            len: value.len() as u16,
+                                            offset: 0,
+                                            value: response,
+                                        }
+                                    };
+
                                     unsafe {
                                         esp_nofail!(esp_ble_gatts_send_response(
                                             gatts_if,
                                             param.conn_id,
                                             param.trans_id,
                                             esp_gatt_status_t_ESP_GATT_OK,
-                                            leaky_box_raw!(esp_gatt_rsp_t {
-                                                attr_value: esp_gatt_value_t {
-                                                    auth_req: 0,
-                                                    handle: param.handle,
-                                                    len: value.len() as u16,
-                                                    offset: 0,
-                                                    value: response,
-                                                },
-                                            })
+                                            &mut esp_rsp
                                         ));
                                     }
                                 }
@@ -528,21 +530,23 @@ impl Profile {
                                                 let mut response = [0u8; 600];
                                                 response[..value.len()].copy_from_slice(&value);
 
+                                                let mut esp_rsp = esp_gatt_rsp_t {
+                                                    attr_value: esp_gatt_value_t {
+                                                        auth_req: 0,
+                                                        handle: param.handle,
+                                                        len: value.len() as u16,
+                                                        offset: 0,
+                                                        value: response,
+                                                    }
+                                                };
+
                                                 unsafe {
                                                     esp_nofail!(esp_ble_gatts_send_response(
                                                         gatts_if,
                                                         param.conn_id,
                                                         param.trans_id,
                                                         esp_gatt_status_t_ESP_GATT_OK,
-                                                        leaky_box_raw!(esp_gatt_rsp_t {
-                                                            attr_value: esp_gatt_value_t {
-                                                                auth_req: 0,
-                                                                handle: param.handle,
-                                                                len: value.len() as u16,
-                                                                offset: 0,
-                                                                value: response,
-                                                            },
-                                                        })
+                                                        &mut esp_rsp
                                                     ));
                                                 }
                                             }
@@ -588,6 +592,16 @@ impl Profile {
                                     let mut response = [0u8; 600];
                                     response[..value.len()].copy_from_slice(&value);
 
+                                    let mut esp_rsp = esp_gatt_rsp_t {
+                                        attr_value: esp_gatt_value_t {
+                                            auth_req: 0,
+                                            handle: param.handle,
+                                            len: value.len() as u16,
+                                            offset: 0,
+                                            value: response,
+                                        },
+                                    };
+
                                     unsafe {
                                         esp_nofail!(esp_ble_gatts_send_response(
                                             gatts_if,
@@ -595,15 +609,7 @@ impl Profile {
                                             param.trans_id,
                                             // TODO: Allow different statuses.
                                             esp_gatt_status_t_ESP_GATT_OK,
-                                            leaky_box_raw!(esp_gatt_rsp_t {
-                                                attr_value: esp_gatt_value_t {
-                                                    auth_req: 0,
-                                                    handle: param.handle,
-                                                    len: value.len() as u16,
-                                                    offset: 0,
-                                                    value: response,
-                                                },
-                                            })
+                                            &mut esp_rsp
                                         ));
                                     }
                                 }
@@ -633,21 +639,23 @@ impl Profile {
                                                 let mut response = [0u8; 600];
                                                 response[..value.len()].copy_from_slice(&value);
 
+                                                let mut esp_rsp = esp_gatt_rsp_t {
+                                                    attr_value: esp_gatt_value_t {
+                                                        auth_req: 0,
+                                                        handle: param.handle,
+                                                        len: value.len() as u16,
+                                                        offset: 0,
+                                                        value: response,
+                                                    },
+                                                };
+
                                                 unsafe {
                                                     esp_nofail!(esp_ble_gatts_send_response(
                                                         gatts_if,
                                                         param.conn_id,
                                                         param.trans_id,
                                                         esp_gatt_status_t_ESP_GATT_OK,
-                                                        leaky_box_raw!(esp_gatt_rsp_t {
-                                                            attr_value: esp_gatt_value_t {
-                                                                auth_req: 0,
-                                                                handle: param.handle,
-                                                                len: value.len() as u16,
-                                                                offset: 0,
-                                                                value: response,
-                                                            },
-                                                        })
+                                                        &mut esp_rsp
                                                     ));
                                                 }
                                             }

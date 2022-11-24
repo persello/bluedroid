@@ -1,9 +1,11 @@
-use std::sync::Arc;
 use esp_idf_sys::*;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub(crate) enum AttributeControl {
-    ResponseByApp(Arc<dyn Fn(esp_ble_gatts_cb_param_t_gatts_read_evt_param) -> Vec<u8> + Send + Sync>),
+    ResponseByApp(
+        Arc<dyn Fn(esp_ble_gatts_cb_param_t_gatts_read_evt_param) -> Vec<u8> + Send + Sync>,
+    ),
     AutomaticResponse(Vec<u8>),
 }
 

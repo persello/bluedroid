@@ -1,4 +1,3 @@
-
 #![warn(missing_docs, unreachable_pub)]
 #![warn(clippy::pedantic)]
 #![warn(clippy::cargo)]

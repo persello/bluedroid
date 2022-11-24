@@ -1,6 +1,7 @@
 # Bluedroid Rust wrapper
 
 [![crates.io](https://img.shields.io/crates/v/bluedroid)](https://crates.io/crates/bluedroid)
+[![build](https://github.com/pulse-loop/bluedroid/actions/workflows/build.yml/badge.svg)](https://github.com/pulse-loop/bluedroid/actions/workflows/build.yml)
 [![docs.rs](https://docs.rs/bluedroid/badge.svg)](https://docs.rs/bluedroid)
 ![crates.io](https://img.shields.io/crates/d/bluedroid)
 ![crates.io](https://img.shields.io/crates/l/bluedroid)

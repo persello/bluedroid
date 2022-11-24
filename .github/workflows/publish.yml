@@ -1,0 +1,43 @@
+name: publish
+
+on:
+  release:
+    types: [published]
+
+env:
+  rust_toolchain: nightly
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Remove `rust-toolchain.toml`
+        run: rm rust-toolchain.toml
+      - name: Python setup
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.10.8
+      - name: Install libclang
+        run: sudo apt update && sudo apt-get install clang libclang-dev -y
+      - name: Rust setup
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.rust_toolchain }}
+          components: rustfmt, clippy #, rust-src
+          default: true
+      - name: Install `rust-src`
+        run: rustup component add rust-src --toolchain ${{ env.rust_toolchain }}-x86_64-unknown-linux-gnu
+      - name: Install `ldproxy`
+        uses: actions-rs/install@v0.1
+        with:
+          crate: ldproxy
+          version: latest
+          use-tool-cache: true
+      - name: Publish
+        uses: actions-rs/cargo@v1
+        with:
+          command: publish
+          args: --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
