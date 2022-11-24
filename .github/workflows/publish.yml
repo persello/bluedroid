@@ -14,9 +14,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-
-      - name: Remove `rust-toolchain.toml`
-        run: rm rust-toolchain.toml
         
       - name: Setup
         uses: pulse-loop/esp32-rust-action@v1
