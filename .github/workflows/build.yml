@@ -27,6 +27,7 @@ jobs:
   
   clippy:
     name: Clippy
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -77,6 +78,7 @@ jobs:
       
   examples:
     name: Build examples
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
