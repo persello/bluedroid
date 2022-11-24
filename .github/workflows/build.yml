@@ -43,6 +43,7 @@ jobs:
           crate: ldproxy
           version: latest
           use-tool-cache: true
+        continue-on-error: true
       - name: Format check
         uses: actions-rs/cargo@v1
         with:
