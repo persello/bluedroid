@@ -11,13 +11,7 @@ readme = "README.md"
 documentation = "https://docs.rs/bluedroid"
 authors = ["Riccardo Persello <riccardo.persello@icloud.com>"]
 
-exclude = [
-    ".embuild",
-    ".idea",
-    ".vscode",
-    "target",
-    "Cargo.lock",
-]
+exclude = [".embuild", ".idea", ".vscode", "target", "Cargo.lock"]
 
 [package.metadata.esp-idf-sys]
 esp_idf_tools_install_dir = "out"
