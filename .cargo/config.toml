@@ -13,6 +13,7 @@ linker = "ldproxy"
 [target.riscv32imc-esp-espidf]
 linker = "ldproxy"
 rustflags = ["-C", "default-linker-libraries"]
+runner = "espflash flash --monitor -b 2000000 "
 
 [env]
 ESP_IDF_SDKCONFIG_DEFAULTS = "sdkconfig.defaults"
