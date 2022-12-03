@@ -119,7 +119,7 @@ fn main() {
         unsafe {
             let x = esp_get_free_heap_size();
             let y = esp_get_free_internal_heap_size();
-            log::info!("Free heap: {} bytes, free internal heap: {} bytes", x, y);
+            info!("Free heap: {} bytes, free internal heap: {} bytes", x, y);
         }
     });
 

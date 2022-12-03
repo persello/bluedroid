@@ -1,0 +1,32 @@
+use crate::gatt_server::Profile;
+use crate::utilities::BleUuid;
+use esp_idf_sys::*;
+use log::{info, warn};
+
+impl Profile {
+    pub(crate) fn on_create(&mut self, param: esp_ble_gatts_cb_param_t_gatts_create_evt_param) {
+        if let Some(service) = self.get_service_by_id(param.service_id.id) {
+            service.write().unwrap().handle = Some(param.service_handle);
+
+            if param.status == esp_gatt_status_t_ESP_GATT_OK {
+                info!(
+                    "GATT service {} registered on handle 0x{:04x}.",
+                    service.read().unwrap(),
+                    service.read().unwrap().handle.unwrap()
+                );
+
+                unsafe {
+                    esp_nofail!(esp_ble_gatts_start_service(
+                        service.read().unwrap().handle.unwrap()
+                    ));
+                }
+
+                service.write().unwrap().register_characteristics();
+            } else {
+                warn!("GATT service registration failed.");
+            }
+        } else {
+            warn!("Cannot find service with service identifier {} received in service creation event.", BleUuid::from(param.service_id.id));
+        }
+    }
+}

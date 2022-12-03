@@ -99,7 +99,7 @@ impl Characteristic {
     }
 
     /// Sets the read callback for this characteristic.
-    /// The callback willbe called when a client reads the value of this characteristic.
+    /// The callback will be called when a client reads the value of this characteristic.
     ///
     /// The callback must return a `Vec<u8>` containing the value to be put into the response to the read request.
     ///
