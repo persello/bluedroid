@@ -53,10 +53,10 @@ impl std::hash::Hash for Connection {
     }
 }
 
-impl std::cmp::PartialEq for Connection {
+impl PartialEq for Connection {
     fn eq(&self, other: &Self) -> bool {
         self.remote_bda == other.remote_bda
     }
 }
 
-impl std::cmp::Eq for Connection {}
+impl Eq for Connection {}
