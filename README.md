@@ -14,17 +14,17 @@ It allows you to build a GATT server with a declarative API and supports multith
 Declare a characteristic:
 
 ```rust
-let manufacturer_name_characteristic = Characteristic::new(BleUuid::Uuid16(0x2A29))
-      .name("Manufacturer Name String")
-      .permissions(AttributePermissions::new().read().write())
-      .properties(CharacteristicProperties::new().read().write().notify())
-      .max_value_length(20)
-      .on_write(|data, param| {
-          info!("Received write request: {:?} {:?}", data, param);
-      })
-      .show_name()
-      .set_value("Hello, world!".as_bytes().to_vec())
-      .build();
+  let manufacturer_name_characteristic = Characteristic::new(BleUuid::Uuid16(0x2A29))
+        .name("Manufacturer Name String")
+        .permissions(AttributePermissions::new().read().write())
+        .properties(CharacteristicProperties::new().read().write().notify())
+        .max_value_length(20)
+        .on_write(|data, param| {
+            info!("Received write request: {:?} {:?}", data, param);
+        })
+        .show_name()
+        .set_value("Hello, world!".as_bytes().to_vec())
+        .build();
 ```
 
 Declare a service:

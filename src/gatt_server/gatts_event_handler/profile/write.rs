@@ -4,6 +4,7 @@ use esp_idf_sys::*;
 use log::debug;
 
 impl Profile {
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn on_write(
         &mut self,
         gatts_if: esp_gatt_if_t,

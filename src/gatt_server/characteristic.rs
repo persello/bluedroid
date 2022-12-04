@@ -191,8 +191,7 @@ impl Characteristic {
         if let Some(max_value_length) = self.max_value_length {
             if value.len() > max_value_length as usize {
                 panic!(
-                    "Value is too long for characteristic {}. The explicitly set maximum length is {} bytes.",
-                    self, max_value_length
+                    "Value is too long for characteristic {self}. The explicitly set maximum length is {max_value_length} bytes."
                 );
             }
         } else if self.attribute_handle.is_some() && value.len() > self.internal_value.len() {
