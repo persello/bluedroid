@@ -1,7 +1,7 @@
 use crate::{
     gatt_server::descriptor::Descriptor,
     leaky_box_raw,
-    utilities::{AttributeControl, AttributePermissions, BleUuid, CharacteristicProperties},
+    utilities::{AttributeControl, AttributePermissions, BleUuid, CharacteristicProperties, LeBytesSerialisable},
 };
 
 use esp_idf_sys::{
@@ -19,7 +19,7 @@ type WriteCallback = dyn Fn(Vec<u8>, esp_ble_gatts_cb_param_t_gatts_write_evt_pa
 
 /// Represents a GATT characteristic.
 #[derive(Clone)]
-pub struct Characteristic {
+pub struct Characteristic<T: LeBytesSerialisable> {
     /// The name of the characteristic, for debugging purposes.
     name: Option<String>,
     /// The characteristic identifier.
@@ -37,7 +37,7 @@ pub struct Characteristic {
     /// The properties that are announced for this characteristic.
     pub(crate) properties: CharacteristicProperties,
     /// The way this characteristic is read.
-    pub(crate) control: AttributeControl,
+    pub(crate) control: AttributeControl<T>,
     /// A buffer for keeping in memory the actual value of this characteristic.
     pub(crate) internal_value: Vec<u8>,
     /// The maximum length of the characteristic value.
@@ -46,7 +46,7 @@ pub struct Characteristic {
     internal_control: esp_attr_control_t,
 }
 
-impl Characteristic {
+impl<T> Characteristic<T> {
     /// Creates a new [`Characteristic`].
     #[must_use]
     pub fn new(uuid: BleUuid) -> Self {
