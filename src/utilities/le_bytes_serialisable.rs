@@ -1,6 +1,5 @@
 /// This trait allows for serialisation of little endian data types to a vector of bytes.
 pub trait LeBytesSerialisable {
-
     /// Serialise the data type to a vector of bytes in little endian format.
     fn to_le_vec(&self) -> Vec<u8>;
 
