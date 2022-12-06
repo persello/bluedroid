@@ -104,11 +104,11 @@ fn main() {
             notifying_characteristic
                 .write()
                 .unwrap()
-                .set_value(format!("Counter: {}", counter).as_bytes().to_vec());
+                .set_value(format!("Counter: {counter}").as_bytes().to_vec());
             indicating_characteristic
                 .write()
                 .unwrap()
-                .set_value(format!("Counter: {}", counter).as_bytes().to_vec());
+                .set_value(format!("Counter: {counter}").as_bytes().to_vec());
             std::thread::sleep(std::time::Duration::from_secs(1));
         }
     });
