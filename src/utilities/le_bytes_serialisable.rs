@@ -7,8 +7,13 @@ pub trait LeBytesSerialisable {
     fn from_le_vec(bytes: Vec<u8>) -> Self;
 }
 
+pub trait FixedLengthSerialisable: LeBytesSerialisable {
+    /// Get the length of the serialised data type in bytes.
+    fn serialised_len() -> usize;
+}
+
 // Array serialisation.
-impl<T: LeBytesSerialisable> LeBytesSerialisable for Vec<T> {
+impl<T: FixedLengthSerialisable> LeBytesSerialisable for Vec<T> {
     fn to_le_vec(&self) -> Vec<u8> {
         let mut bytes = Vec::new();
 
@@ -21,7 +26,7 @@ impl<T: LeBytesSerialisable> LeBytesSerialisable for Vec<T> {
 
     fn from_le_vec(bytes: Vec<u8>) -> Self {
         let mut items = Vec::new();
-        let mut chunks = bytes.chunks_exact(T::to_le_vec(&T::from_le_vec(vec![0])).len());
+        let mut chunks = bytes.chunks_exact(T::serialised_len());
 
         for chunk in chunks.by_ref() {
             items.push(T::from_le_vec(chunk.to_vec()));
@@ -53,6 +58,12 @@ impl LeBytesSerialisable for bool {
     }
 }
 
+impl FixedLengthSerialisable for bool {
+    fn serialised_len() -> usize {
+        1
+    }
+}
+
 // Automatic serialisation of types that implement to_le_bytes and from_le_bytes.
 macro_rules! auto_serialise_le_bytes {
     ($($t:ty),*) => {
@@ -64,6 +75,12 @@ macro_rules! auto_serialise_le_bytes {
 
                 fn from_le_vec(bytes: Vec<u8>) -> Self {
                     <$t>::from_le_bytes(bytes.try_into().unwrap())
+                }
+            }
+
+            impl FixedLengthSerialisable for $t {
+                fn serialised_len() -> usize {
+                    std::mem::size_of::<$t>()
                 }
             }
         )*
