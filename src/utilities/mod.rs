@@ -1,9 +1,13 @@
 //! This module contains useful structs and macros for the crate.
 
-// Leaky box: internally useful for ffi C interfacing.
+// Trait for converting data to little endian bytes: public.
+mod le_bytes_serialisable;
+pub use le_bytes_serialisable::LeBytesSerialisable;
+
+// Leaky box: internally useful for ffi C interfacing: private.
 pub(crate) mod leaky_box;
 
-// Utilities: private.
+// Utilities: private
 mod attribute_control;
 pub(crate) use attribute_control::AttributeControl;
 
