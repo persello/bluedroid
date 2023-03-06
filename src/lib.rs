@@ -14,8 +14,3 @@
 
 pub mod gatt_server;
 pub mod utilities;
-
-// TODO: Custom errors instead of panics.
-// TODO: Builder pattern.
-// TODO: Fix (no allow) some complex allows such as complexity and line limits.
-// TODO: Characteristic presentation format.
