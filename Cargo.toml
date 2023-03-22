@@ -13,6 +13,9 @@ authors = ["Riccardo Persello <riccardo.persello@icloud.com>"]
 
 exclude = [".embuild", ".idea", ".vscode", "target", "Cargo.lock"]
 
+[package.metadata.espflash]
+partition_table = "partitions.csv"
+
 [package.metadata.esp-idf-sys]
 esp_idf_tools_install_dir = "out"
 
@@ -23,21 +26,21 @@ rustdoc-args = ["--no-deps"]
 cargo-args = ["-Z", "build-std"]
 
 [dependencies]
-esp-idf-sys = { version = "0.31.10", features = ["native"] }
-esp-idf-svc = { version = "0.43.4" }
-embedded-svc = { version = "0.23.1" }
+esp-idf-sys = { version = "0.32.1", features = ["native"] }
+esp-idf-svc = { version = "0.45.0" }
+embedded-svc = { version = "0.24.0" }
 log = { version = "0.4.17" }
 lazy_static = { version = "1.4.0" }
 
 [build-dependencies]
-embuild = { version = "0.30.2" }
-anyhow = { version = "1.0.58" }
+embuild = { version = "0.31.1" }
+anyhow = { version = "1.0.70" }
 
 [dev-dependencies]
-anyhow = { version = "1.0.58" }
-esp-idf-sys = { version = "0.31.10", features = ["native", "binstart"] }
-esp-idf-svc = { version = "=0.43.4" }
-esp-idf-hal = { version = "=0.39.3" }
+anyhow = { version = "1.0.70" }
+esp-idf-sys = { version = "0.32.1", features = ["native", "binstart"] }
+esp-idf-svc = { version = "=0.45.0" }
+esp-idf-hal = { version = "=0.40.1" }
 embedded-hal = { version = "1.0.0-alpha.9" }
 
 [[example]]
@@ -48,3 +51,6 @@ required-features = ["esp-idf-sys/binstart"]
 strip = true
 opt-level = "z"
 lto = true
+
+[patch.crates-io]
+esp-idf-svc = { git = "https://github.com/esp-rs/esp-idf-svc.git", version = "0.45.0" }

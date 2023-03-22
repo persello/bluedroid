@@ -5,7 +5,6 @@ use crate::{
     utilities::{AttributePermissions, BleUuid},
 };
 
-use embedded_svc::storage::RawStorage;
 use esp_idf_svc::nvs::{EspDefaultNvs, EspDefaultNvsPartition};
 use lazy_static::lazy_static;
 use log::debug;
