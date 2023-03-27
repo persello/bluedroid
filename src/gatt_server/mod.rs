@@ -267,6 +267,8 @@ impl GattServer {
             slave_ce_len_min: SLAVE_CE_LEN_MIN_DEFAULT as u8,
             hw_recorrect_en: AGC_RECORRECT_EN as u8,
             cca_thresh: CONFIG_BT_CTRL_HW_CCA_VAL as u8,
+            dup_list_refresh_period: DUPL_SCAN_CACHE_REFRESH_PERIOD as u16,
+            scan_backoff_upperlimitmax: BT_CTRL_SCAN_BACKOFF_UPPERLIMITMAX as u16,
         };
 
         // BLE controller initialisation.
