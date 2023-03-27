@@ -33,15 +33,11 @@ log = { version = "0.4.17" }
 lazy_static = { version = "1.4.0" }
 
 [build-dependencies]
-embuild = { version = "0.31.1" }
-anyhow = { version = "1.0.70" }
+embuild = { version = "0.31.0" }
+anyhow = { version = "1.0.58" }
 
 [dev-dependencies]
-anyhow = { version = "1.0.70" }
-esp-idf-sys = { version = "0.32.1", features = ["native", "binstart"] }
-esp-idf-svc = { version = "=0.45.0" }
-esp-idf-hal = { version = "=0.40.1" }
-embedded-hal = { version = "1.0.0-alpha.9" }
+anyhow = { version = "1.0.58" }
 
 [[example]]
 name = "server"

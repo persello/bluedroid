@@ -195,6 +195,7 @@ impl GattServer {
             .cloned()
     }
 
+    #[allow(clippy::too_many_lines)]
     fn initialise_ble_stack() {
         info!("Initialising BLE stack.");
 
