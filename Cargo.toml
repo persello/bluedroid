@@ -13,6 +13,9 @@ authors = ["Riccardo Persello <riccardo.persello@icloud.com>"]
 
 exclude = [".embuild", ".idea", ".vscode", "target", "Cargo.lock"]
 
+[package.metadata.espflash]
+partition_table = "partitions.csv"
+
 [package.metadata.esp-idf-sys]
 esp_idf_tools_install_dir = "out"
 
@@ -44,3 +47,6 @@ required-features = ["esp-idf-sys/binstart"]
 strip = true
 opt-level = "z"
 lto = true
+
+[patch.crates-io]
+esp-idf-svc = { git = "https://github.com/esp-rs/esp-idf-svc.git", version = "0.45.0" }
