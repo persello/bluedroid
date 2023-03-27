@@ -38,7 +38,11 @@ fn main() {
     ))
     .name("Writable Characteristic")
     .permissions(AttributePermissions::new().read().write())
-    .properties(CharacteristicProperties::new().read().write_without_response())
+    .properties(
+        CharacteristicProperties::new()
+            .read()
+            .write_without_response(),
+    )
     .on_read(move |_param| {
         info!("Read from writable characteristic.");
         return char_value_read.read().unwrap().clone();

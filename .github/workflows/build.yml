@@ -1,92 +1,75 @@
 #file: noinspection SpellCheckingInspection,SpellCheckingInspection,SpellCheckingInspection,SpellCheckingInspection
 name: build
-
 on: [push, pull_request]
 
 env:
   rust_toolchain: nightly
 
 jobs:
-  format:
-    name: Format
+  compile:
+    name: Compile
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - riscv32imc-esp-espidf
+          - xtensa-esp32-espidf
+          - xtensa-esp32s2-espidf
+          - xtensa-esp32s3-espidf
+        idf-version:
+          - release/v4.4
+          - release/v5.0
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+      - name: Setup | Checkout
+        uses: actions/checkout@v3
 
-      - name: Setup
-        uses: pulse-loop/esp32-rust-action@v1
-          
-      - name: Format
-        uses: actions-rs/cargo@v1
+      - name: Setup | Rust
+        if: matrix.target == 'riscv32imc-esp-espidf'
+        uses: dtolnay/rust-toolchain@v1
         with:
-          command: fmt
-          args: -- --check
-  
-  clippy:
-    name: Clippy
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+          toolchain: ${{ env.rust_toolchain }}
+          components: rustfmt, clippy, rust-src
 
-      - name: Setup
-        uses: pulse-loop/esp32-rust-action@v1
+      - name: Setup | Rust for Xtensa
+        if: matrix.target != 'riscv32imc-esp-espidf'
+        uses: esp-rs/xtensa-toolchain@v1.5
+        with:
+          default: true
+
+      - name: Build | Format Check
+        run: cargo fmt -- --check
+
+      - name: Build | Clippy
+        env:
+          ESP_IDF_VERSION: ${{ matrix.idf-version }}
+          # ESP_IDF_SDKCONFIG_DEFAULTS: $(pwd)/.github/configs/sdkconfig.defaults
+          RUSTFLAGS: "${{ matrix.idf-version == 'release/v5.0' && '--cfg espidf_time64' || ''}}"
+        run: cargo clippy --features nightly,experimental --no-deps --target ${{ matrix.target }} -Zbuild-std=std,panic_abort -Zbuild-std-features=panic_immediate_abort -- -Dwarnings
+
+      - name: Build | Compile
+        env:
+          ESP_IDF_VERSION: ${{ matrix.idf-version }}
+          # ESP_IDF_SDKCONFIG_DEFAULTS: $(pwd)/.github/configs/sdkconfig.defaults
+          RUSTFLAGS: "${{ matrix.idf-version == 'release/v5.0' && '--cfg espidf_time64' || ''}}"
+        run: cargo build --target ${{ matrix.target }} -Zbuild-std=std,panic_abort -Zbuild-std-features=panic_immediate_abort
+
+      - name: Build | Compile, experimental, nightly, no_std
+        env:
+          ESP_IDF_VERSION: ${{ matrix.idf-version }}
+          # ESP_IDF_SDKCONFIG_DEFAULTS: $(pwd)/.github/configs/sdkconfig.defaults
+          RUSTFLAGS: "${{ matrix.idf-version == 'release/v5.0' && '--cfg espidf_time64' || ''}}"
+        run: cargo build --no-default-features --features nightly,experimental --target ${{ matrix.target }} -Zbuild-std=std,panic_abort -Zbuild-std-features=panic_immediate_abort
       
-      - name: Cache
-        uses: actions/cache@v2
-        with:
-          path: target
-          key: target
+      - name: Build | Compile, experimental, nightly, alloc
+        env:
+          ESP_IDF_VERSION: ${{ matrix.idf-version }}
+          # ESP_IDF_SDKCONFIG_DEFAULTS: $(pwd)/.github/configs/sdkconfig.defaults
+          RUSTFLAGS: "${{ matrix.idf-version == 'release/v5.0' && '--cfg espidf_time64' || ''}}"
+        run: cargo build --no-default-features --features nightly,experimental,alloc --target ${{ matrix.target }} -Zbuild-std=std,panic_abort -Zbuild-std-features=panic_immediate_abort
 
-      - name: Clippy
-        uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --no-deps --target riscv32imc-esp-espidf -Zbuild-std=std,panic_abort -Zbuild-std-features=panic_immediate_abort -- -Dwarnings
-
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Setup
-        uses: pulse-loop/esp32-rust-action@v1
-      
-      - name: Cache
-        uses: actions/cache@v2
-        with:
-          path: target
-          key: target
-      
-      - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --target riscv32imc-esp-espidf -Zbuild-std=std,panic_abort -Zbuild-std-features=panic_immediate_abort
-      
-  examples:
-    name: Build examples
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Setup
-        uses: pulse-loop/esp32-rust-action@v1
-      
-      - name: Cache
-        uses: actions/cache@v2
-        with:
-          path: target
-          key: target
-
-      - name: Build examples
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --examples --target riscv32imc-esp-espidf -Zbuild-std=std,panic_abort -Zbuild-std-features=panic_immediate_abort
+      - name: Build | Examples
+        env:
+          ESP_IDF_VERSION: ${{ matrix.idf-version }}
+          # ESP_IDF_SDKCONFIG_DEFAULTS: $(pwd)/.github/configs/sdkconfig.defaults
+          RUSTFLAGS: "${{ matrix.idf-version == 'release/v5.0' && '--cfg espidf_time64' || ''}}"
+        run: cargo build --examples --target ${{ matrix.target }} -Zbuild-std=std,panic_abort -Zbuild-std-features=panic_immediate_abort

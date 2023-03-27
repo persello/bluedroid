@@ -195,6 +195,7 @@ impl GattServer {
             .cloned()
     }
 
+    #[allow(clippy::too_many_lines)]
     fn initialise_ble_stack() {
         info!("Initialising BLE stack.");
 
@@ -256,6 +257,7 @@ impl GattServer {
             txant_dft: CONFIG_BT_CTRL_TX_ANTENNA_INDEX_EFF as u8,
             rxant_dft: CONFIG_BT_CTRL_RX_ANTENNA_INDEX_EFF as u8,
             txpwr_dft: CONFIG_BT_CTRL_DFT_TX_POWER_LEVEL_EFF as u8,
+            cfg_mask: CFG_NASK,
             cfg_mask: CFG_NASK,
             scan_duplicate_mode: SCAN_DUPLICATE_MODE as u8,
             scan_duplicate_type: SCAN_DUPLICATE_TYPE_VALUE as u8,
