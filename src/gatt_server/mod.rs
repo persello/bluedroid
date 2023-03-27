@@ -233,7 +233,7 @@ impl GattServer {
             pcm_polar: CONFIG_BTDM_CTRL_PCM_POLAR_EFF as _,
             hli: BTDM_CTRL_HLI != 0,
             magic: ESP_BT_CONTROLLER_CONFIG_MAGIC_VAL,
-            dup_list_refresh_period: DUPL_SCAN_CACHE_REFRESH_PERIOD as u16,
+            dup_list_refresh_period: SCAN_DUPL_CACHE_REFRESH_PERIOD as u16,
         };
 
         #[cfg(esp32c3)]
