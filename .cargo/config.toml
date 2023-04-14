@@ -17,7 +17,7 @@ runner = "espflash flash --monitor -b 2000000 "
 
 [env]
 ESP_IDF_SDKCONFIG_DEFAULTS = "sdkconfig.defaults"
-ESP_IDF_VERSION = "release/v4.4"
+ESP_IDF_VERSION = "v4.4.4"
 
 ESP_IDF_GLOB_CONFIG_FILES_BASE = { value = ".", relative = true }
 ESP_IDF_GLOB_CONFIG_FILES_1 = { value = "/partitions.csv" }
