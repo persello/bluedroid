@@ -1,6 +1,6 @@
 #file: noinspection SpellCheckingInspection,SpellCheckingInspection,SpellCheckingInspection,SpellCheckingInspection
 name: build
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 
 env:
   rust_toolchain: nightly
@@ -17,8 +17,9 @@ jobs:
           - xtensa-esp32-espidf
           - xtensa-esp32s2-espidf
           - xtensa-esp32s3-espidf
-        idf-version:
-          - release/v4.4
+        idf-version:        
+          - v4.4.3
+          - v4.4.4
           - release/v5.0
     steps:
       - name: Setup | Checkout
