@@ -13,6 +13,16 @@ pub enum BleUuid {
     Uuid128([u8; 16]),
 }
 
+/// Creates a contant [`BleUuid`] from a const string.
+#[macro_export]
+macro_rules! uuid128 {
+    ($uuid:literal) => {{
+        const UUID: $crate::utilities::BleUuid =
+            $crate::utilities::BleUuid::from_uuid128_str($uuid);
+        UUID
+    }};
+}
+
 impl BleUuid {
     /// Creates a new [`BleUuid`] from a 16-bit integer.
     #[must_use]
@@ -32,28 +42,72 @@ impl BleUuid {
         Self::Uuid128(uuid)
     }
 
+    /// Creates a new [`BleUuid`] from a const string.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the string contains invalid characters or has invalid length.
+    #[must_use]
+    pub const fn from_uuid128_str(uuid_str: &str) -> Self {
+        // Accepts the following formats:
+        // "00000000-0000-0000-0000-000000000000"
+        // "00000000000000000000000000000000"
+
+        let mut uuid = [0u8; 16];
+
+        let byte = uuid_str.as_bytes();
+        let mut i = 15usize; // uuid byte counter
+        let mut h = true; // is high half of byte
+        let mut c = 0usize; // char counter
+
+        while c < byte.len() {
+            let b = byte[c];
+            c += 1;
+            let n = if b >= b'0' && b <= b'9' {
+                b - b'0'
+            } else if b >= b'a' && b <= b'f' {
+                b - (b'a' - 10)
+            } else if b >= b'A' && b <= b'F' {
+                b - (b'A' - 10)
+            } else if b == b'-' {
+                continue;
+            } else {
+                // unexpected char
+                panic!("Invalid UUID string");
+            };
+            if i == 16 {
+                panic!("Too long UUID string");
+            }
+            if h {
+                // high half of byte
+                uuid[i] = n << 4;
+            } else {
+                // low half of byte
+                uuid[i] |= n;
+                if i > 0 {
+                    i -= 1;
+                } else {
+                    // end of uuid data
+                    i = 16;
+                }
+            }
+            h = !h;
+        }
+
+        if i != 16 || !h {
+            panic!("Too short UUID string");
+        }
+
+        Self::Uuid128(uuid)
+    }
+
     /// Creates a new [`BleUuid`] from a formatted string.
     ///
     /// # Panics
     ///
     /// Panics if the string contains invalid characters.
     pub fn from_uuid128_string<S: AsRef<str>>(uuid: S) -> Self {
-        // Accepts the following formats:
-        // "00000000-0000-0000-0000-000000000000"
-        // "00000000000000000000000000000000"
-
-        let uuid = uuid.as_ref();
-
-        let mut uuid_bytes = [0u8; 16];
-        // Remove the dashes.
-        let uuid = uuid.replace('-', "");
-
-        for (i, byte) in uuid.as_bytes().chunks(2).enumerate() {
-            uuid_bytes[i] = u8::from_str_radix(std::str::from_utf8(byte).unwrap(), 16).unwrap();
-        }
-
-        uuid_bytes.reverse();
-        Self::Uuid128(uuid_bytes)
+        Self::from_uuid128_str(uuid.as_ref())
     }
 
     #[must_use]
