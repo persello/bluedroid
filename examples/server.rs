@@ -2,7 +2,8 @@ use std::sync::{Arc, RwLock};
 
 use bluedroid::{
     gatt_server::{Characteristic, Profile, Service, GLOBAL_GATT_SERVER},
-    utilities::{AttributePermissions, BleUuid, CharacteristicProperties},
+    utilities::{AttributePermissions, CharacteristicProperties},
+    uuid128,
 };
 
 use esp_idf_sys::{esp_get_free_heap_size, esp_get_free_internal_heap_size};
@@ -19,9 +20,9 @@ fn main() {
     let char_value_read = char_value_write.clone();
 
     // A static characteristic.
-    let static_characteristic = Characteristic::new(BleUuid::from_uuid128_string(
-        "d4e0e0d0-1a2b-11e9-ab14-d663bd873d93",
-    ))
+    let static_characteristic = Characteristic::new(uuid128! {
+        "d4e0e0d0-1a2b-11e9-ab14-d663bd873d93"
+    })
     .name("Static Characteristic")
     .permissions(AttributePermissions::new().read())
     .max_value_length(20)
@@ -31,9 +32,9 @@ fn main() {
     .build();
 
     // A characteristic that notifies every second.
-    let notifying_characteristic = Characteristic::new(BleUuid::from_uuid128_string(
-        "a3c87500-8ed3-4bdf-8a39-a01bebede295",
-    ))
+    let notifying_characteristic = Characteristic::new(uuid128! {
+        "a3c87500-8ed3-4bdf-8a39-a01bebede295"
+    })
     .name("Notifying Characteristic")
     .permissions(AttributePermissions::new().read())
     .properties(CharacteristicProperties::new().read().notify())
@@ -43,9 +44,9 @@ fn main() {
     .build();
 
     // A characteristic that notifies every second.
-    let indicating_characteristic = Characteristic::new(BleUuid::from_uuid128_string(
-        "c41d6f80-1a2c-11e9-ab14-d663bd873d93",
-    ))
+    let indicating_characteristic = Characteristic::new(uuid128! {
+        "c41d6f80-1a2c-11e9-ab14-d663bd873d93" //
+    })
     .name("Indicating Characteristic")
     .permissions(AttributePermissions::new().read())
     .properties(CharacteristicProperties::new().read().indicate())
@@ -55,9 +56,9 @@ fn main() {
     .build();
 
     // A writable characteristic.
-    let writable_characteristic = Characteristic::new(BleUuid::from_uuid128_string(
-        "3c9a3f00-8ed3-4bdf-8a39-a01bebede295",
-    ))
+    let writable_characteristic = Characteristic::new(uuid128! {
+        "3c9a3f00-8ed3-4bdf-8a39-a01bebede295"
+    })
     .name("Writable Characteristic")
     .permissions(AttributePermissions::new().read().write())
     .properties(CharacteristicProperties::new().read().write())
@@ -72,9 +73,9 @@ fn main() {
     .show_name()
     .build();
 
-    let service = Service::new(BleUuid::from_uuid128_string(
-        "fafafafa-fafa-fafa-fafa-fafafafafafa", // far better, run run run run, run run run away...
-    ))
+    let service = Service::new(uuid128! {
+        "fafafafa-fafa-fafa-fafa-fafafafafafa" // far better, run run run run, run run run away...
+    })
     .name("Example Service")
     .primary()
     .characteristic(&static_characteristic)
