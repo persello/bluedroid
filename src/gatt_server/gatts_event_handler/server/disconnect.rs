@@ -12,6 +12,7 @@ impl GattServer {
         );
 
         self.active_connections.remove(&param.into());
+        self.custom_server_callbacks.on_disconnect(param);
 
         unsafe {
             esp_idf_sys::esp_ble_gap_start_advertising(&mut self.advertisement_parameters);
