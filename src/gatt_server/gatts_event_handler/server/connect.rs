@@ -9,5 +9,6 @@ impl GattServer {
     ) {
         info!("GATT client {} connected.", Connection::from(param));
         self.active_connections.insert(param.into());
+        self.custom_server_callbacks.on_connect(param)
     }
 }

@@ -21,6 +21,8 @@ pub use descriptor::Descriptor;
 pub use profile::Profile;
 pub use service::Service;
 
+use custom_server_callbacks::CustomServerCallbacks;
+
 // Structs.
 mod characteristic;
 mod descriptor;
@@ -33,6 +35,9 @@ mod custom_attributes;
 // Event handler.
 mod gap_event_handler;
 mod gatts_event_handler;
+
+// Custom server callbacks
+mod custom_server_callbacks;
 
 lazy_static! {
     /// The GATT server singleton.
@@ -81,6 +86,7 @@ lazy_static! {
         advertisement_configured: false,
         device_name: "ESP32".to_string(),
         active_connections: HashSet::new(),
+        custom_server_callbacks: CustomServerCallbacks::default(),
     });
 }
 
@@ -96,6 +102,7 @@ pub struct GattServer {
     device_name: String,
     advertisement_configured: bool,
     active_connections: HashSet<Connection>,
+    custom_server_callbacks: CustomServerCallbacks, // Custom callbacks for server events.
 }
 
 unsafe impl Send for GattServer {}
@@ -161,6 +168,28 @@ impl GattServer {
     pub fn set_adv_data(&mut self, data: esp_ble_adv_data_t) -> &mut Self {
         self.advertisement_data = data;
 
+        self
+    }
+
+    /// Sets the callback function for the `on_connect` event.
+    pub fn on_connect_callback<
+        C: Fn(esp_ble_gatts_cb_param_t_gatts_connect_evt_param) + Send + Sync + 'static,
+    >(
+        &mut self,
+        callback: C,
+    ) -> &mut Self {
+        self.custom_server_callbacks.on_connect = Some(Box::new(callback));
+        self
+    }
+
+    /// Sets the callback function for the `on_disconnect` event.
+    pub fn on_disconnect_callback<
+        C: Fn(esp_ble_gatts_cb_param_t_gatts_disconnect_evt_param) + Send + Sync + 'static,
+    >(
+        &mut self,
+        callback: C,
+    ) -> &mut Self {
+        self.custom_server_callbacks.on_disconnect = Some(Box::new(callback));
         self
     }
 

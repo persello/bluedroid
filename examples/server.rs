@@ -96,6 +96,12 @@ fn main() {
         .device_name("ESP32-GATT-Server")
         .appearance(bluedroid::utilities::Appearance::WristWornPulseOximeter)
         .advertise_service(&service)
+        .on_connect_callback(|_| {
+            info!("Hello from on_connect callback");
+        })
+        .on_disconnect_callback(|_| {
+            info!("Hello from on_disconnect callback");   
+        })
         .start();
 
     std::thread::spawn(move || {

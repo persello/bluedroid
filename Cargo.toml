@@ -49,4 +49,4 @@ opt-level = "z"
 lto = true
 
 [patch.crates-io]
-esp-idf-svc = { git = "https://github.com/esp-rs/esp-idf-svc.git", version = "0.45.0" }
+esp-idf-svc = { git = "https://github.com/esp-rs/esp-idf-svc.git", tag = "v0.45.0"}
