@@ -26,9 +26,9 @@ rustdoc-args = ["--no-deps"]
 cargo-args = ["-Z", "build-std"]
 
 [dependencies]
-esp-idf-sys = { version = "0.32.1", features = ["native"] }
-esp-idf-svc = { version = "0.45.0" }
-embedded-svc = { version = "0.24.0" }
+esp-idf-sys = { version = "0.33.1", features = ["native"] }
+esp-idf-svc = { version = "0.46.0" }
+embedded-svc = { version = "0.25.3" }
 log = { version = "0.4.17" }
 lazy_static = { version = "1.4.0" }
 
@@ -49,4 +49,4 @@ opt-level = "z"
 lto = true
 
 [patch.crates-io]
-esp-idf-svc = { git = "https://github.com/esp-rs/esp-idf-svc.git", version = "0.45.0" }
+esp-idf-svc = { git = "https://github.com/esp-rs/esp-idf-svc.git", version = "0.46.0" }
